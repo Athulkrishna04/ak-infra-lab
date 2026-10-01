@@ -13,7 +13,7 @@ This is the "how" of the project. Every step says **why** you're doing it, gives
 | 🚦 **Gate** | Pass/fail checkpoint. It must pass before you continue |
 
 **Golden rules** (these are also good interview answers):
-1. **Snapshot before anything risky** (SSH, firewall, fstab, patching).
+1. **Snapshot before anything risky** (SSH, firewall, fstab, patching). On this laptop, **power the VM off first** and take an offline snapshot, which takes seconds. A live snapshot of mon01 hung for 35 minutes on 2026-10-01 with its state file stuck at 0 MB. The cure was a clean ACPI shutdown (`VBoxManage controlvm <vm> acpipowerbutton`), which made VirtualBox roll the half-made snapshot back.
 2. **Keep a second SSH session open** while changing SSH, sudo or the firewall.
 3. **Never `setenforce 0` as a fix.** SELinux problems get a real fix (context, boolean, port label).
 4. **`sudo mount -a && sudo findmnt --verify` after every fstab edit**, before any reboot.
