@@ -60,8 +60,50 @@ Reboot web01 (`sudo systemctl reboot`), wait about a minute, then run `verify.sh
 
 Paste trimmed real output here, one heading per test. Example:
 
-### T08
+### T08 (2026-10-01, web01)
 
 ```text
-<paste output of: systemctl show ak-app -p MemoryMax -p CPUQuotaPerSecUSec>
+$ systemctl show ak-app -p MemoryMax -p CPUQuotaPerSecUSec -p TasksMax
+CPUQuotaPerSecUSec=250ms
+MemoryMax=134217728
+TasksMax=50
+$ cat /sys/fs/cgroup/system.slice/ak-app.service/{memory.max,cpu.max}
+134217728
+25000 100000
+$ systemd-analyze security ak-app | tail -1
+→ Overall exposure level for ak-app.service: 8.3 EXPOSED
+```
+
+### M2.8 online LVM extend (2026-10-01 18:27, web01)
+
+A 60-second request loop from mon01 (`curl /app/` once per second) ran while the volume was grown. Result: **60 × `200`**, no failed request.
+
+```text
+Filesystem                  Size  Used Avail Use% Mounted on
+/dev/mapper/vg_data-lv_app  3.0G   90M  2.9G   3% /srv/app        <- before
+  Size of logical volume vg_data/lv_app changed from 3.00 GiB (768 extents) to 5.00 GiB (1280 extents).
+  Extending file system xfs to 5.00 GiB (5368709120 bytes) on vg_data/lv_app...
+data blocks changed from 786432 to 1310720
+/dev/mapper/vg_data-lv_app  5.0G  130M  4.9G   3% /srv/app        <- after
+  VG      #PV #LV #SN Attr   VSize  VFree
+  vg_data   2   1   0 wz--n-  6.99g 1.99g
+```
+
+Side finding: after the 2 GB disk was attached, the kernel named it `sdb` and renamed the existing data disk `sdc`. `/srv/app` still mounted, because fstab references the filesystem by UUID.
+
+### T05 / T17 (2026-10-01, from mon01)
+
+```text
+T05 mgmt   http://192.168.56.11/      -> 200
+T05 mgmt   http://192.168.56.11/app/  -> 200
+T17 public http://10.0.10.6/          -> 200
+T17 public http://10.0.10.6/app/      -> 200
+```
+
+### Reboot test after M2 (web01 booted 2026-10-01 18:19:59)
+
+```text
+T07 mount: /dev/mapper/vg_data-lv_app xfs
+services: ak-app=active nginx=active failed-units=0
+T04 SELinux: Enforcing   boolean: httpd_can_network_relay --> on
 ```

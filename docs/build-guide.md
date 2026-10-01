@@ -298,7 +298,7 @@ PS> powershell -ExecutionPolicy Bypass -File tools\sync-to-lab.ps1
 ```bash
 web01$ sudo dnf -y upgrade
 web01$ sudo dnf -y install vim-enhanced bash-completion policycoreutils-python-utils setroubleshoot-server \
-         sysstat rsync tar chrony lsof dnf-plugins-core
+         sysstat rsync tar chrony lsof dnf-plugins-core acl     # acl = setfacl/getfacl (not in Minimal Install)
 web01$ sudo dnf needs-restarting -r || sudo systemctl reboot
 
 mon01$ sudo apt update && sudo apt -y full-upgrade

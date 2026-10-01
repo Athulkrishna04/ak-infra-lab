@@ -32,4 +32,4 @@ Don't read the "Expected path" column before you've done the fault. It's here so
 
 | ID | Title | Date | Time to resolve | Blind? |
 |---|---|---|---|---|
-| INC-001 | | | | natural |
+| [INC-001](INC-001-nginx-502-selinux.md) | nginx returns 502 for /app/ under SELinux | 2026-10-01 | ~10 min | natural |
