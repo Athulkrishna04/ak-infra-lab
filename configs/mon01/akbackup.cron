@@ -1,0 +1,5 @@
+# crontab for user akbackup on mon01 (M3.8): keep 14 days of backup archives.
+# Install:  sudo crontab -u akbackup ~/ak-infra-lab/configs/mon01/akbackup.cron
+# Check:    sudo crontab -u akbackup -l
+# m  h  dom mon dow  command
+15   3  *   *   *    find /srv/backups -type f -name '*.tar.gz*' -mtime +14 -delete

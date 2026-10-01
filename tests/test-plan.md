@@ -100,6 +100,37 @@ T17 public http://10.0.10.6/          -> 200
 T17 public http://10.0.10.6/app/      -> 200
 ```
 
+### T09 (2026-10-01, zabbix_get from mon01 → web01)
+
+```text
+agent.ping = 1
+ak.health.status = 0
+ak.mem.avail_pct = 73.3
+ak.backup.age = 999999          (before the first backup)
+net.tcp.service[http,,80] = 1
+zabbix_agent2 runs as system_u:system_r:unconfined_service_t:s0 (no SELinux denials for UserParameters)
+```
+
+### T11 / T12a / T12b / T15 / T18 (2026-10-01 22:03–22:05)
+
+First backup: `OK web01_2026-10-01_2203.tar.gz` (journal of ak-backup.service); the timer's next run is tonight at 01:30 (±10 min).
+
+```text
+web01  PASS T11  ak-backup.timer enabled/active, last success 2026-10-01 22:03:48
+web01  PASS T12b restore of etc/ssh/sshd_config matches live file and label (web01_2026-10-01_2203.tar.gz)
+web01  PASS T15  healthcheck: OK: web01 healthy
+web01  PASS T18  chrony synchronised
+mon01  PASS T12a web01_2026-10-01_2203.tar.gz: OK
+mon01  PASS T09s zabbix-server active
+mon01  PASS T15  healthcheck: OK: mon01 healthy
+mon01  PASS T18  chrony synchronised
+after the backup: ak.backup.age = 142 s
+```
+
+### T10
+
+*Add the two screenshots `docs/screenshots/T10-problem.png` and `T10-resolved.png` (Monitoring → Problems, "nginx is down on web01").*
+
 ### Reboot test after M2 (web01 booted 2026-10-01 18:19:59)
 
 ```text
