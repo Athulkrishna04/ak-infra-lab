@@ -1,0 +1,27 @@
+# Private working notes (plan, research brief)
+_working/
+
+# Secrets: never commit keys, passwords or env files
+*.key
+*.pem
+id_*
+!id_*.pub.example
+*.env
+.env*
+secrets/
+*password*
+!docs/runbooks/root-password-reset.md
+
+# VM images and exports (far too big for Git)
+*.vdi
+*.vmdk
+*.vhd
+*.ova
+*.ovf
+*.iso
+
+# Editor / OS noise
+.vscode/
+*.swp
+Thumbs.db
+desktop.ini

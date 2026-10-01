@@ -1,0 +1,14 @@
+---
+# roles/web - TODO (E3): write this role yourself, in the style of roles/common.
+# Automate exactly what you did by hand, using the files already in this repo:
+#   - LVM: community.general.lvg / community.general.lvol, community.general.filesystem, ansible.posix.mount
+#   - users/dirs: akapp system user, /srv/app/public, /srv/www
+#   - SELinux: community.general.sefcontext for /srv/www + restorecon, ansible.posix.seboolean for the INC-001 fix
+#   - systemd/ak-app.service, configs/web01/nginx/conf.d/app.conf (validate with nginx -t), services enabled
+#
+# Rules: every task idempotent (second run = changed=0); validate config files before
+# installing them (visudo, sshd -t, nginx -t); restart services through handlers only.
+
+- name: "Placeholder until the web role is written (E3)"
+  ansible.builtin.debug:
+    msg: "role web not written yet"

@@ -1,0 +1,36 @@
+# /etc/systemd/system/ak-app.service   (web01)
+# A tiny "application": Python's http.server serving /srv/app/public on 127.0.0.1:8080.
+# nginx proxies /app/ to it. The point is not the app but how it is run:
+# as a dedicated user, with cgroup v2 resource limits and systemd sandboxing.
+#
+#   systemctl show ak-app -p MemoryMax -p CPUQuotaPerSecUSec -p TasksMax
+#   cat /sys/fs/cgroup/system.slice/ak-app.service/memory.max
+#   systemd-analyze security ak-app
+
+[Unit]
+Description=AK demo app (Python http.server behind nginx)
+After=network-online.target
+Wants=network-online.target
+# /srv/app is a separate LVM volume; don't start before it is mounted
+RequiresMountsFor=/srv/app
+
+[Service]
+User=akapp
+Group=akapp
+ExecStart=/usr/bin/python3 -m http.server 8080 --bind 127.0.0.1 --directory /srv/app/public
+Restart=on-failure
+RestartSec=5
+
+# cgroup v2 resource control
+MemoryMax=128M
+CPUQuota=25%
+TasksMax=50
+
+# sandboxing
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

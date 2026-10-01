@@ -1,0 +1,15 @@
+# /etc/logrotate.d/remote   (E1, mon01)
+# Dry run: sudo logrotate -d /etc/logrotate.d/remote
+/var/log/remote/*/*.log {
+    daily
+    rotate 14
+    compress
+    delaycompress
+    missingok
+    notifempty
+    su syslog adm
+    sharedscripts
+    postrotate
+        /usr/lib/rsyslog/rsyslog-rotate
+    endscript
+}

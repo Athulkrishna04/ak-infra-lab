@@ -1,0 +1,14 @@
+# /etc/systemd/system/ak-health.service   (both nodes)
+# Runs healthcheck.sh; its OK/WARN/CRIT lines go to the journal:
+#   journalctl -u ak-health -n 5
+
+[Unit]
+Description=AK node health check
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/healthcheck.sh
+# healthcheck exits 1 (WARN) or 2 (CRIT). Count those as a successful run, otherwise this
+# unit would be marked failed and the next run would report "failed units: ak-health.service",
+# i.e. an alert about itself.
+SuccessExitStatus=1 2

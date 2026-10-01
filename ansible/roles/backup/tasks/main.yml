@@ -1,0 +1,14 @@
+---
+# roles/backup - TODO (E3): write this role yourself, in the style of roles/common.
+# Automate exactly what you did by hand, using the files already in this repo:
+#   - scripts/ak-backup.sh -> /usr/local/sbin (0700), systemd/ak-backup.service + .timer
+#   - /root/.ssh/backup_ed25519 generated if missing (community.crypto.openssh_keypair) - never commit the key
+#   - mon01 side: akbackup user, /srv/backups/<host>, authorized_keys entry (ansible.posix.authorized_key, delegate_to: mon01)
+#   - timer enabled
+#
+# Rules: every task idempotent (second run = changed=0); validate config files before
+# installing them (visudo, sshd -t, nginx -t); restart services through handlers only.
+
+- name: "Placeholder until the backup role is written (E3)"
+  ansible.builtin.debug:
+    msg: "role backup not written yet"

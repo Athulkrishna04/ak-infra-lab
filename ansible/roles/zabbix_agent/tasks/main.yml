@@ -1,0 +1,14 @@
+---
+# roles/zabbix_agent - TODO (E3): write this role yourself, in the style of roles/common.
+# Automate exactly what you did by hand, using the files already in this repo:
+#   - Zabbix 7.0 repo rpm for Rocky 10 (ansible.builtin.dnf with the URL from zabbix.com/download)
+#   - zabbix-agent2 installed; Server/ServerActive/Hostname set (ansible.builtin.lineinfile)
+#   - zabbix/zabbix_agent2.d/ak.conf + scripts/procstat.py + scripts/ak-backup-age.sh
+#   - service enabled; handler restarts zabbix-agent2
+#
+# Rules: every task idempotent (second run = changed=0); validate config files before
+# installing them (visudo, sshd -t, nginx -t); restart services through handlers only.
+
+- name: "Placeholder until the zabbix_agent role is written (E3)"
+  ansible.builtin.debug:
+    msg: "role zabbix_agent not written yet"

@@ -1,0 +1,86 @@
+---
+# roles/common - baseline shared by every node.
+# This role is the worked example for E3: every task is idempotent (a second run changes
+# nothing) and copies the same files you installed by hand in M1-M3. Write the other
+# roles in the same style.
+
+- name: Time zone is Asia/Kolkata
+  community.general.timezone:
+    name: Asia/Kolkata
+
+- name: chrony is installed
+  ansible.builtin.package:
+    name: chrony
+    state: present
+
+- name: chrony is running and enabled
+  ansible.builtin.service:
+    name: "{{ 'chronyd' if ansible_facts['os_family'] == 'RedHat' else 'chrony' }}"
+    state: started
+    enabled: true
+
+- name: Admin and developer groups exist
+  ansible.builtin.group:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - ops
+    - devs
+
+- name: akadmin is in ops
+  ansible.builtin.user:
+    name: akadmin
+    groups: ops
+    append: true
+
+- name: akdev exists on web nodes
+  ansible.builtin.user:
+    name: akdev
+    groups: devs
+    append: true
+    shell: /bin/bash
+  when: inventory_hostname in groups['rocky']
+
+- name: Lab names resolve on every node
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    line: "{{ item }}"
+  loop:
+    - "192.168.56.10   mon01.lab.local   mon01"
+    - "192.168.56.11   web01.lab.local   web01"
+
+- name: sudoers drop-in (checked by visudo before it replaces anything)
+  ansible.builtin.copy:
+    src: "{{ repo_root }}/configs/web01/sudoers.d/ak"
+    dest: /etc/sudoers.d/ak
+    owner: root
+    group: root
+    mode: "0440"
+    validate: /usr/sbin/visudo -cf %s
+
+- name: Health check script
+  ansible.builtin.copy:
+    src: "{{ repo_root }}/scripts/healthcheck.sh"
+    dest: /usr/local/bin/healthcheck.sh
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Health check units
+  ansible.builtin.copy:
+    src: "{{ repo_root }}/systemd/{{ item }}"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - ak-health.service
+    - ak-health.timer
+  notify: Reload systemd
+
+- name: Health timer is enabled and running
+  ansible.builtin.systemd_service:
+    name: ak-health.timer
+    state: started
+    enabled: true
+    daemon_reload: true

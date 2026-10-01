@@ -1,0 +1,15 @@
+# /etc/systemd/system/ak-backup.service   (web01)
+# Started by ak-backup.timer; run by hand with: sudo systemctl start ak-backup.service
+# Result: journalctl -u ak-backup -n 20
+
+[Unit]
+Description=AK nightly backup to mon01
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/ak-backup.sh
+# Be polite to the rest of the system
+Nice=10
+IOSchedulingClass=idle

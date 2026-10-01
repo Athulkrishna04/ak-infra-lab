@@ -1,0 +1,15 @@
+# /etc/netplan/60-hostonly.yaml   (mon01, Ubuntu 24.04)
+# Adapter 2 = VirtualBox host-only network (management plane).
+# No gateway and no DNS here: the default route stays on adapter 1 (labnet NAT),
+# which the installer already set to DHCP in 50-cloud-init.yaml.
+#
+# If 50-cloud-init.yaml already mentions enp0s8, edit it there instead of adding this file.
+#   sudo install -m 600 60-hostonly.yaml /etc/netplan/
+#   sudo netplan try          # auto-reverts after 120 s unless you press Enter
+network:
+  version: 2
+  ethernets:
+    enp0s8:
+      dhcp4: false
+      addresses:
+        - 192.168.56.10/24

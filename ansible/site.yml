@@ -1,0 +1,19 @@
+---
+# E3: rebuild the fleet from the files already in this repo.
+# Gate: a fresh Rocky VM converges in one run, and a second run reports changed=0.
+- name: Baseline for every node
+  hosts: lab
+  vars:
+    repo_root: "{{ playbook_dir }}/.."
+  roles:
+    - common
+    - hardening
+
+- name: Web node
+  hosts: rocky
+  vars:
+    repo_root: "{{ playbook_dir }}/.."
+  roles:
+    - web
+    - zabbix_agent
+    - backup

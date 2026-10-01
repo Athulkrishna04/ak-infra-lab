@@ -1,0 +1,15 @@
+# /etc/systemd/system/ak-backup.timer   (web01)
+# Why a timer and not cron: Persistent=true runs a missed backup at the next boot
+# (a laptop lab is often off at 01:30), and every run is logged in the journal.
+#   systemctl list-timers ak-backup.timer
+
+[Unit]
+Description=Run ak-backup nightly
+
+[Timer]
+OnCalendar=*-*-* 01:30:00
+RandomizedDelaySec=10m
+Persistent=true
+
+[Install]
+WantedBy=timers.target

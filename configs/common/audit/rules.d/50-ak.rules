@@ -1,0 +1,20 @@
+## /etc/audit/rules.d/50-ak.rules   (E1, web01; mon01 needs `apt install auditd` first)
+## Load with: sudo augenrules --load && sudo auditctl -l
+## Do NOT `systemctl restart auditd` - the unit refuses manual restarts.
+
+## Who changed accounts or groups
+-w /etc/passwd -p wa -k identity
+-w /etc/group -p wa -k identity
+-w /etc/shadow -p wa -k identity
+-w /etc/gshadow -p wa -k identity
+
+## Who changed sudo policy
+-w /etc/sudoers -p wa -k sudoers
+-w /etc/sudoers.d/ -p wa -k sudoers
+
+## Who changed the SSH daemon config
+-w /etc/ssh/sshd_config -p wa -k sshd
+-w /etc/ssh/sshd_config.d/ -p wa -k sshd
+
+## Every command run as root by a real logged-in user (auid = the login uid, kept across sudo)
+-a always,exit -F arch=b64 -S execve -F euid=0 -F auid>=1000 -F auid!=unset -k root_cmds

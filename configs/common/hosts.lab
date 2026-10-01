@@ -1,0 +1,5 @@
+# Append to /etc/hosts on BOTH VMs:
+#   cat configs/common/hosts.lab | sudo tee -a /etc/hosts
+# Host-only (management) addresses only. The labnet (10.0.10.x) addresses come from DHCP.
+192.168.56.10   mon01.lab.local   mon01
+192.168.56.11   web01.lab.local   web01

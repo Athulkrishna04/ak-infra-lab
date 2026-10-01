@@ -1,0 +1,14 @@
+# /etc/sudoers.d/ak   (web01 AND mon01; the %devs line is harmless on mon01, where no one is in devs)
+# Install ONLY with:  sudo visudo -f /etc/sudoers.d/ak
+# Check before you log out:  sudo visudo -cf /etc/sudoers.d/ak
+# The file name must not contain a dot or end in ~, or sudo silently ignores it.
+
+# Admins: full sudo, password required
+%ops  ALL=(ALL) ALL
+
+# Developers: restart nginx and read its logs, nothing else.
+# No wildcards: `journalctl -u nginx*` would also match any extra arguments.
+# --no-pager is pinned so journalctl never opens `less` as root.
+%devs ALL=(root) /usr/bin/systemctl restart nginx, \
+                 /usr/bin/journalctl -u nginx --no-pager, \
+                 /usr/bin/journalctl -u nginx -n 100 --no-pager

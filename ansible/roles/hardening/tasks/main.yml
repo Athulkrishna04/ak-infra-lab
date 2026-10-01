@@ -1,0 +1,16 @@
+---
+# roles/hardening - TODO (E3): write this role yourself, in the style of roles/common.
+# Automate exactly what you did by hand, using the files already in this repo:
+#   - configs/common/sshd_config.d/10-hardening.conf  (validate: /usr/sbin/sshd -t -f %s is NOT enough for a
+#     drop-in; copy it, then run 'sshd -t' in a handler before 'reload ssh/sshd')
+#   - configs/common/sysctl.d/90-ak.conf              (ansible.posix.sysctl, or copy + 'sysctl --system')
+#   - configs/common/audit/rules.d/50-ak.rules        (copy, then handler 'augenrules --load'; never restart auditd)
+#   - web01 only: firewalld zones from configs/web01/firewalld.sh (ansible.posix.firewalld)
+#   - mon01 only: ufw rules from configs/mon01/ufw.sh (community.general.ufw)
+#
+# Rules: every task idempotent (second run = changed=0); validate config files before
+# installing them (visudo, sshd -t, nginx -t); restart services through handlers only.
+
+- name: "Placeholder until the hardening role is written (E3)"
+  ansible.builtin.debug:
+    msg: "role hardening not written yet"

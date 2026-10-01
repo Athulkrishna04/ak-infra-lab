@@ -1,0 +1,6 @@
+# Optional. Lets the Windows browser use names instead of IPs.
+# Append these lines to  C:\Windows\System32\drivers\etc\hosts
+# (open Notepad with "Run as administrator", then File > Open that path).
+# SSH doesn't need this: ssh_config.example already maps the names.
+192.168.56.10   mon01.lab.local   mon01
+192.168.56.11   web01.lab.local   web01

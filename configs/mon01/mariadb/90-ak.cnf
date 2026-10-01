@@ -1,0 +1,6 @@
+# /etc/mysql/mariadb.conf.d/90-ak.cnf   (mon01)
+# mon01 has 2 GB RAM shared by MariaDB, Zabbix server, PHP-FPM and nginx.
+# Keep the database small. Apply with: sudo systemctl restart mariadb
+[mysqld]
+innodb_buffer_pool_size = 256M
+performance_schema      = OFF
