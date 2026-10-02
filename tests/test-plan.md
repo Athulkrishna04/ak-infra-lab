@@ -129,7 +129,19 @@ after the backup: ak.backup.age = 142 s
 
 ### T10
 
-*Add the two screenshots `docs/screenshots/T10-problem.png` and `T10-resolved.png` (Monitoring → Problems, "nginx is down on web01").*
+2026-10-02: `systemctl stop nginx` on web01, then `systemctl start nginx` about a minute later.
+
+| Event | Time (IST) |
+|---|---|
+| Problem "nginx is down on web01" (High) raised | 02:02:38 |
+| Recovered (status RESOLVED) | 02:03:38 |
+| Duration | 1m |
+
+The times are the VMs' clock, which was 9 h 15 min slow at that moment after the laptop slept with the VMs paused. The screenshots were taken at about 11:19 IST wall time. chrony was then set to `makestep 1 -1` and both clocks stepped back to the correct time at 11:29 IST.
+
+Evidence: [T10-problem.png](../docs/screenshots/T10-problem.png), [T10-resolved.png](../docs/screenshots/T10-resolved.png).
+
+An earlier attempt on 2026-10-01 left no problem event. nginx was most likely restarted before the 30-second item polled. Lesson: keep a service down for at least two check intervals when testing an alert.
 
 ### Reboot test after M2 (web01 booted 2026-10-01 18:19:59)
 

@@ -13,6 +13,7 @@
 *.ini      text eol=lf
 *.cfg      text eol=lf
 *.lab      text eol=lf
+*.cron     text eol=lf
 configs/web01/sudoers.d/*  text eol=lf
 configs/mon01/logrotate.d/* text eol=lf
 

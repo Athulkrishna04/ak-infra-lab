@@ -1,0 +1,53 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: 142b455fe5274fcd8056db874a808ae7
+      name: Templates/Ak
+  templates:
+    - uuid: f339195d1f494665ba7857c8fc0db2e1
+      template: 'AK Linux Lab'
+      name: 'AK Linux Lab'
+      groups:
+        - name: Templates/Ak
+      items:
+        - uuid: 31483b69533f45cf9dc886ec016ec390
+          name: 'AK backup age'
+          key: ak.backup.age
+          delay: 5m
+          units: s
+          triggers:
+            - uuid: 003ccfedaafc41a49972a8fb2b7e621c
+              expression: 'last(/AK Linux Lab/ak.backup.age)>90000'
+              name: 'Backup older than 25 h on {HOST.NAME}'
+              priority: HIGH
+        - uuid: 3e051c7ed0624ee990fa2201cf940083
+          name: 'AK health status'
+          key: ak.health.status
+          triggers:
+            - uuid: 3a7245b17e1d4e0c8cf1b72eb7b2f94a
+              expression: 'last(/AK Linux Lab/ak.health.status)=2'
+              name: 'Health check CRIT on {HOST.NAME}'
+              priority: HIGH
+            - uuid: b67cacf1a67b4ee98b0f6fb4f4239d92
+              expression: 'last(/AK Linux Lab/ak.health.status)=1'
+              name: 'Health check WARN on {HOST.NAME}'
+              priority: WARNING
+        - uuid: f1738fd48eab47d0bed98683370d8c7c
+          name: 'AK memory available'
+          key: ak.mem.avail_pct
+          value_type: FLOAT
+          units: '%'
+          triggers:
+            - uuid: c20c9994b37741d0bae1d08171a902f1
+              expression: 'max(/AK Linux Lab/ak.mem.avail_pct,5m)<10'
+              name: 'Memory pressure on {HOST.NAME}'
+              priority: WARNING
+        - uuid: 5a27e5ea9f9c43bca45842d225b5a7c3
+          name: 'AK nginx port 80'
+          key: 'net.tcp.service[http,,80]'
+          delay: 30s
+          triggers:
+            - uuid: 0cc10593ab2940cbb0447e35b67aa44c
+              expression: 'last(/AK Linux Lab/net.tcp.service[http,,80])=0'
+              name: 'nginx is down on {HOST.NAME}'
+              priority: HIGH

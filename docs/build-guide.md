@@ -319,6 +319,13 @@ web01$ timedatectl
 ```
 **Expected:** `Leap status : Normal` and `System clock synchronized: yes` on both VMs.
 
+**On a laptop, let chrony jump the clock at any time.** When Windows sleeps, VirtualBox pauses the VMs and their clocks stop. On 2026-10-02 both VMs woke up 9 h 15 min slow. The default `makestep 1.0 3` only allows a jump during the first 3 updates after boot, so chrony would have taken days to slew back. Allow a step whenever the clock is more than 1 s off:
+```bash
+web01$ sudo sed -i -E 's/^makestep .*/makestep 1.0 -1/' /etc/chrony.conf && sudo systemctl restart chronyd
+mon01$ sudo sed -i -E 's/^makestep .*/makestep 1 -1/' /etc/chrony/chrony.conf && sudo systemctl restart chrony
+```
+About a minute later, once the sources have been measured, `date` is correct again.
+
 ### M1.4 Groups and users
 
 **Why:** role-based access. Admins are in `ops`, developers in `devs`, and nobody shares an account.
