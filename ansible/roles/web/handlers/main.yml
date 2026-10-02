@@ -1,0 +1,21 @@
+---
+- name: Restart ak-app
+  ansible.builtin.systemd_service:
+    name: ak-app
+    state: restarted
+    daemon_reload: true
+
+- name: Restore web labels
+  ansible.builtin.command: restorecon -R /srv/www
+
+# INC-004: test first, then RELOAD. On reload, nginx keeps serving with the old config if the
+# new one is broken; a restart would take the site down.
+- name: Test and reload nginx
+  ansible.builtin.command: nginx -t
+  changed_when: false
+  notify: Reload nginx
+
+- name: Reload nginx
+  ansible.builtin.service:
+    name: nginx
+    state: reloaded

@@ -1,0 +1,19 @@
+---
+# Handlers run once at the end of the role, however many tasks notified them.
+- name: Test and reload sshd
+  ansible.builtin.command: /usr/sbin/sshd -t
+  changed_when: false
+  notify: Reload sshd
+
+- name: Reload sshd
+  ansible.builtin.service:
+    name: "{{ 'sshd' if ansible_facts['os_family'] == 'RedHat' else 'ssh' }}"
+    state: reloaded
+
+- name: Apply sysctl
+  ansible.builtin.command: sysctl --system
+
+# augenrules compiles rules.d into audit.rules and loads it. auditd itself must NOT be
+# restarted with systemctl: its unit refuses manual restarts by design.
+- name: Load audit rules
+  ansible.builtin.command: augenrules --load

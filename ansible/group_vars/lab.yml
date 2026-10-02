@@ -1,0 +1,9 @@
+---
+# No secrets here. Each host's sudo password comes from host_vars/<host>.yml, which only
+# points into ~/.ak-become.vault.yml (ansible-vault, outside the repo, loaded by run.sh).
+
+# Where the repo lives on the control node (mon01). Roles copy files from here, never inline config.
+repo_root: "{{ playbook_dir }}/.."
+
+mgmt_net: 192.168.56.0/24
+mon01_ip: 192.168.56.10

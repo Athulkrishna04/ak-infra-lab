@@ -25,3 +25,7 @@ secrets/
 *.swp
 Thumbs.db
 desktop.ini
+
+# Ansible vault files hold passwords: never commit them, even encrypted
+*.vault.yml
+.vault_pass*

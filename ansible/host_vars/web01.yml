@@ -1,0 +1,3 @@
+---
+# Per host, not per group: tasks delegated to mon01 (roles/backup) then use mon01's password.
+ansible_become_password: "{{ ak_become.web01 }}"

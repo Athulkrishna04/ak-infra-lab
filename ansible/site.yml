@@ -1,18 +1,17 @@
 ---
 # E3: rebuild the fleet from the files already in this repo.
 # Gate: a fresh Rocky VM converges in one run, and a second run reports changed=0.
+# Order matters: common creates the ops group before hardening's AllowGroups can require it,
+# and the mgmt firewalld zone exists before ssh is removed from the public zone.
 - name: Baseline for every node
   hosts: lab
-  vars:
-    repo_root: "{{ playbook_dir }}/.."
   roles:
     - common
     - hardening
+    - logging
 
 - name: Web node
   hosts: rocky
-  vars:
-    repo_root: "{{ playbook_dir }}/.."
   roles:
     - web
     - zabbix_agent

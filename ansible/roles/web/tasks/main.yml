@@ -1,14 +1,145 @@
 ---
-# roles/web - TODO (E3): write this role yourself, in the style of roles/common.
-# Automate exactly what you did by hand, using the files already in this repo:
-#   - LVM: community.general.lvg / community.general.lvol, community.general.filesystem, ansible.posix.mount
-#   - users/dirs: akapp system user, /srv/app/public, /srv/www
-#   - SELinux: community.general.sefcontext for /srv/www + restorecon, ansible.posix.seboolean for the INC-001 fix
-#   - systemd/ak-app.service, configs/web01/nginx/conf.d/app.conf (validate with nginx -t), services enabled
-#
-# Rules: every task idempotent (second run = changed=0); validate config files before
-# installing them (visudo, sshd -t, nginx -t); restart services through handlers only.
+# roles/web - M2 on web01: LVM data volume, ak-app with cgroup limits, nginx + SELinux.
 
-- name: "Placeholder until the web role is written (E3)"
-  ansible.builtin.debug:
-    msg: "role web not written yet"
+- name: Packages for the web node
+  ansible.builtin.package:
+    name: [nginx, lvm2, xfsprogs, policycoreutils-python-utils, python3-libselinux]
+    state: present
+
+# --- storage (M2.1-M2.3, M2.8) -------------------------------------------------------------
+# Both data disks belong to vg_data. Kernel names can swap when disks are added (M2.8: sdb and
+# sdc traded places), which is harmless here: lvg only checks that both are PVs of the VG.
+# On a rebuild these must be the two NEW, EMPTY disks. lvg refuses a disk that belongs to
+# another VG rather than wiping it.
+- name: Volume group vg_data on both data disks
+  community.general.lvg:
+    vg: vg_data
+    pvs: [/dev/sdb, /dev/sdc]
+
+- name: Logical volume lv_app is 5 GiB (it never shrinks)
+  community.general.lvol:
+    vg: vg_data
+    lv: lv_app
+    size: 5g
+    shrink: false
+
+- name: XFS on lv_app (only if it has no filesystem yet)
+  community.general.filesystem:
+    dev: /dev/vg_data/lv_app
+    fstype: xfs
+
+- name: Look up the UUID of lv_app (read-only, so it also runs in --check)
+  ansible.builtin.command: blkid -s UUID -o value /dev/vg_data/lv_app
+  register: web_lv_uuid
+  changed_when: false
+  failed_when: false        # on a fresh VM in --check mode the LV doesn't exist yet
+  check_mode: false
+
+- name: /srv/app is mounted by UUID, never by /dev/sdX (INC-008 is what a typo here does)
+  when: web_lv_uuid.stdout | length > 0
+  ansible.posix.mount:
+    path: /srv/app
+    src: "UUID={{ web_lv_uuid.stdout }}"
+    fstype: xfs
+    opts: defaults
+    dump: "0"
+    passno: "0"
+    state: mounted
+
+# --- the app (M2.4-M2.5) -------------------------------------------------------------------
+- name: akapp system user (no login)
+  ansible.builtin.user:
+    name: akapp
+    system: true
+    shell: /sbin/nologin
+    create_home: false
+
+- name: App content directory
+  ansible.builtin.file:
+    path: /srv/app/public
+    state: directory
+    owner: root
+    group: root
+    mode: "0775"
+
+- name: Developers may deploy content, and new files inherit that (access + default ACL)
+  ansible.posix.acl:
+    path: /srv/app/public
+    etype: group
+    entity: devs
+    permissions: rwx
+    default: "{{ item }}"
+    state: present
+  loop: [false, true]
+
+- name: Placeholder app page (kept if it already exists)
+  ansible.builtin.copy:
+    dest: /srv/app/public/index.html
+    content: "app works\n"
+    owner: root
+    group: root
+    mode: "0644"
+    force: false
+
+- name: ak-app unit (cgroup limits and sandboxing)
+  ansible.builtin.copy:
+    src: "{{ repo_root }}/systemd/ak-app.service"
+    dest: /etc/systemd/system/ak-app.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart ak-app
+
+- name: ak-app is running and enabled
+  ansible.builtin.systemd_service:
+    name: ak-app
+    state: started
+    enabled: true
+    daemon_reload: true
+
+# --- static site + SELinux (M2.6-M2.7, INC-001, INC-005) -----------------------------------
+- name: Static site directory
+  ansible.builtin.file:
+    path: /srv/www
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Static page (kept if it already exists)
+  ansible.builtin.copy:
+    dest: /srv/www/index.html
+    content: "web01 up\n"
+    owner: root
+    group: root
+    mode: "0644"
+    force: false
+  notify: Restore web labels
+
+- name: Persistent SELinux rule - /srv/www is web content
+  community.general.sefcontext:
+    target: "/srv/www(/.*)?"
+    setype: httpd_sys_content_t
+    state: present
+  notify: Restore web labels
+
+- name: nginx may relay to the backend port (the narrowest fix for INC-001)
+  ansible.posix.seboolean:
+    name: httpd_can_network_relay
+    state: true
+    persistent: true
+
+- name: nginx site config
+  ansible.builtin.copy:
+    src: "{{ repo_root }}/configs/web01/nginx/conf.d/app.conf"
+    dest: /etc/nginx/conf.d/app.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Test and reload nginx
+
+- name: nginx is running and enabled
+  ansible.builtin.service:
+    name: nginx
+    state: started
+    enabled: true

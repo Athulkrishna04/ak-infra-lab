@@ -1,0 +1,10 @@
+---
+- name: Test and restart rsyslog
+  ansible.builtin.command: rsyslogd -N1
+  changed_when: false
+  notify: Restart rsyslog
+
+- name: Restart rsyslog
+  ansible.builtin.service:
+    name: rsyslog
+    state: restarted

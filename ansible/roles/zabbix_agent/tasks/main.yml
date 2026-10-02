@@ -1,14 +1,60 @@
 ---
-# roles/zabbix_agent - TODO (E3): write this role yourself, in the style of roles/common.
-# Automate exactly what you did by hand, using the files already in this repo:
-#   - Zabbix 7.0 repo rpm for Rocky 10 (ansible.builtin.dnf with the URL from zabbix.com/download)
-#   - zabbix-agent2 installed; Server/ServerActive/Hostname set (ansible.builtin.lineinfile)
-#   - zabbix/zabbix_agent2.d/ak.conf + scripts/procstat.py + scripts/ak-backup-age.sh
-#   - service enabled; handler restarts zabbix-agent2
-#
-# Rules: every task idempotent (second run = changed=0); validate config files before
-# installing them (visudo, sshd -t, nginx -t); restart services through handlers only.
+# roles/zabbix_agent - M3.4 on web01: Zabbix 7.0 agent2 from the official repo + the AK checks.
 
-- name: "Placeholder until the zabbix_agent role is written (E3)"
-  ansible.builtin.debug:
-    msg: "role zabbix_agent not written yet"
+# The release RPM only adds the repo definition and its signing key; the packages installed
+# from that repo afterwards ARE GPG-checked. The release RPM itself can't be, because its key
+# isn't on the box yet (the same reason the build guide used `rpm -Uvh <url>`).
+- name: Is the Zabbix repository package installed? (read-only)
+  ansible.builtin.command: rpm -q zabbix-release
+  register: zbx_release
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+# Only when missing: a URL install would otherwise "upgrade" whenever Zabbix publishes a new
+# release RPM, and the second run would no longer report changed=0.
+- name: Zabbix 7.0 repository for Rocky 10
+  ansible.builtin.dnf:
+    name: https://repo.zabbix.com/zabbix/7.0/rocky/10/x86_64/zabbix-release-latest-7.0.el10.noarch.rpm
+    state: present
+    disable_gpg_check: true
+  when: zbx_release.rc != 0
+
+- name: zabbix-agent2 is installed
+  ansible.builtin.dnf:
+    name: zabbix-agent2
+    state: present
+
+- name: Agent talks to mon01 and calls itself by the name the server knows
+  ansible.builtin.lineinfile:
+    path: /etc/zabbix/zabbix_agent2.conf
+    regexp: "^{{ item.key }}="
+    line: "{{ item.key }}={{ item.value }}"
+  loop:
+    - { key: Server, value: "{{ mon01_ip }}" }
+    - { key: ServerActive, value: "{{ mon01_ip }}" }
+    - { key: Hostname, value: "{{ inventory_hostname }}" }
+  notify: Restart zabbix-agent2
+
+- name: Helper for the backup-age check
+  ansible.builtin.copy:
+    src: "{{ repo_root }}/scripts/ak-backup-age.sh"
+    dest: /usr/local/bin/ak-backup-age.sh
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: AK UserParameters (memory, health, backup age)
+  ansible.builtin.copy:
+    src: "{{ repo_root }}/zabbix/zabbix_agent2.d/ak.conf"
+    dest: /etc/zabbix/zabbix_agent2.d/ak.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart zabbix-agent2
+
+- name: zabbix-agent2 is running and enabled
+  ansible.builtin.service:
+    name: zabbix-agent2
+    state: started
+    enabled: true

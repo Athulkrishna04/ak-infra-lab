@@ -1,17 +1,27 @@
 ---
-# roles/common - baseline shared by every node.
-# This role is the worked example for E3: every task is idempotent (a second run changes
-# nothing) and copies the same files you installed by hand in M1-M3. Write the other
-# roles in the same style.
+# roles/common - baseline shared by every node (M0-M3).
+# Every task is idempotent: a second run changes nothing. Files are copied from the repo,
+# never pasted into YAML, so the repo stays the single source of truth.
 
 - name: Time zone is Asia/Kolkata
   community.general.timezone:
     name: Asia/Kolkata
 
-- name: chrony is installed
+- name: Base tools are installed (Rocky Minimal lacks several; M1.2)
   ansible.builtin.package:
-    name: chrony
+    name: "{{ common_pkgs[ansible_facts['os_family']] }}"
     state: present
+  vars:
+    common_pkgs:
+      RedHat: [chrony, sysstat, rsync, tar, lsof, dnf-plugins-core, acl]
+      Debian: [chrony, rsync, acl]
+
+- name: chrony steps the clock whenever it's off (VMs pause while the laptop sleeps; M3 fix)
+  ansible.builtin.lineinfile:
+    path: "{{ '/etc/chrony.conf' if ansible_facts['os_family'] == 'RedHat' else '/etc/chrony/chrony.conf' }}"
+    regexp: '^makestep\s'
+    line: "{{ 'makestep 1.0 -1' if ansible_facts['os_family'] == 'RedHat' else 'makestep 1 -1' }}"
+  notify: Restart chrony
 
 - name: chrony is running and enabled
   ansible.builtin.service:
@@ -33,12 +43,26 @@
     groups: ops
     append: true
 
+- name: akadmin accepts the Windows admin key and mon01's key (public keys, committed in configs/keys)
+  ansible.posix.authorized_key:
+    user: akadmin
+    key: "{{ lookup('ansible.builtin.file', repo_root ~ '/configs/keys/' ~ item) }}"
+  loop:
+    - akadmin-windows.pub
+    - akadmin-mon01.pub
+
 - name: akdev exists on web nodes
   ansible.builtin.user:
     name: akdev
     groups: devs
     append: true
     shell: /bin/bash
+  when: inventory_hostname in groups['rocky']
+
+- name: akdev accepts its own key on web nodes
+  ansible.posix.authorized_key:
+    user: akdev
+    key: "{{ lookup('ansible.builtin.file', repo_root ~ '/configs/keys/akdev-windows.pub') }}"
   when: inventory_hostname in groups['rocky']
 
 - name: Lab names resolve on every node
@@ -58,13 +82,16 @@
     mode: "0440"
     validate: /usr/sbin/visudo -cf %s
 
-- name: Health check script
+- name: Health check and its helper
   ansible.builtin.copy:
-    src: "{{ repo_root }}/scripts/healthcheck.sh"
-    dest: /usr/local/bin/healthcheck.sh
+    src: "{{ repo_root }}/scripts/{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
     owner: root
     group: root
     mode: "0755"
+  loop:
+    - healthcheck.sh
+    - procstat.py
 
 - name: Health check units
   ansible.builtin.copy:
@@ -84,3 +111,25 @@
     state: started
     enabled: true
     daemon_reload: true
+
+# M1: kdump can't work on a 1.5 GB VM (no crashkernel reservation) and its failed unit
+# would make the health check report WARN forever.
+- name: kdump is disabled on web nodes
+  ansible.builtin.systemd_service:
+    name: kdump
+    state: stopped
+    enabled: false
+  when: inventory_hostname in groups['rocky']
+  failed_when: false        # a minimal install without kexec-tools has no kdump unit; that's fine too
+
+- name: Read the kernel command line
+  ansible.builtin.slurp:
+    src: /proc/cmdline
+  register: common_cmdline
+  when: inventory_hostname in groups['rocky']
+
+- name: No crashkernel reservation on web nodes (takes effect at the next boot)
+  ansible.builtin.command: grubby --update-kernel=ALL --remove-args=crashkernel
+  when:
+    - inventory_hostname in groups['rocky']
+    - "'crashkernel' in (common_cmdline.content | b64decode)"

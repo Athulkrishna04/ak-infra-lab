@@ -1,16 +1,159 @@
 ---
-# roles/hardening - TODO (E3): write this role yourself, in the style of roles/common.
-# Automate exactly what you did by hand, using the files already in this repo:
-#   - configs/common/sshd_config.d/10-hardening.conf  (validate: /usr/sbin/sshd -t -f %s is NOT enough for a
-#     drop-in; copy it, then run 'sshd -t' in a handler before 'reload ssh/sshd')
-#   - configs/common/sysctl.d/90-ak.conf              (ansible.posix.sysctl, or copy + 'sysctl --system')
-#   - configs/common/audit/rules.d/50-ak.rules        (copy, then handler 'augenrules --load'; never restart auditd)
-#   - web01 only: firewalld zones from configs/web01/firewalld.sh (ansible.posix.firewalld)
-#   - mon01 only: ufw rules from configs/mon01/ufw.sh (community.general.ufw)
-#
-# Rules: every task idempotent (second run = changed=0); validate config files before
-# installing them (visudo, sshd -t, nginx -t); restart services through handlers only.
+# roles/hardening - M1 SSH and firewall hardening, E1 sysctl / auditd / banner / password aging.
+# Safety rules (they kept the lab from locking itself out by hand, and still apply here):
+#   - sshd config is tested (sshd -t) by the handler BEFORE sshd is reloaded; reload, never restart
+#   - the firewalld mgmt zone is complete and active BEFORE ssh is removed from the public zone
 
-- name: "Placeholder until the hardening role is written (E3)"
-  ansible.builtin.debug:
-    msg: "role hardening not written yet"
+# --- SSH ---------------------------------------------------------------------------------
+- name: sshd drop-ins (hardening, login banner)
+  ansible.builtin.copy:
+    src: "{{ repo_root }}/configs/common/sshd_config.d/{{ item }}"
+    dest: "/etc/ssh/sshd_config.d/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - 10-hardening.conf
+    - 11-banner.conf
+  notify: Test and reload sshd
+
+- name: Login banner text
+  ansible.builtin.copy:
+    src: "{{ repo_root }}/configs/common/issue.net"
+    dest: /etc/issue.net
+    owner: root
+    group: root
+    mode: "0644"
+
+# --- password aging defaults for new accounts (E1.4) -----------------------------------
+- name: Password aging defaults in login.defs
+  ansible.builtin.lineinfile:
+    path: /etc/login.defs
+    regexp: "^{{ item.key }}\\s"
+    line: "{{ item.key }}\t{{ item.value }}"
+  loop:
+    - { key: PASS_MAX_DAYS, value: 90 }
+    - { key: PASS_WARN_AGE, value: 7 }
+
+# --- kernel (E1.2) ------------------------------------------------------------------------
+- name: sysctl hardening file
+  ansible.builtin.copy:
+    src: "{{ repo_root }}/configs/common/sysctl.d/90-ak.conf"
+    dest: /etc/sysctl.d/90-ak.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Apply sysctl
+
+# --- audit trail (E1.1, web nodes; auditd is not installed on mon01) ----------------------
+- name: Audit packages (Rocky 10 ships augenrules in the separate audit-rules package)
+  ansible.builtin.package:
+    name: [audit, audit-rules]
+    state: present
+  when: inventory_hostname in groups['rocky']
+
+- name: Audit rules
+  ansible.builtin.copy:
+    src: "{{ repo_root }}/configs/common/audit/rules.d/50-ak.rules"
+    dest: /etc/audit/rules.d/50-ak.rules
+    owner: root
+    group: root
+    mode: "0640"
+  notify: Load audit rules
+  when: inventory_hostname in groups['rocky']
+
+# --- firewalld on web nodes (M1.8): mgmt = admin network, public = http only -------------
+- name: firewalld is running
+  ansible.builtin.service:
+    name: firewalld
+    state: started
+    enabled: true
+  when: inventory_hostname in groups['rocky']
+
+- name: The mgmt zone exists
+  ansible.posix.firewalld:
+    zone: mgmt
+    state: present
+    permanent: true
+  register: hardening_mgmt_zone
+  when: inventory_hostname in groups['rocky']
+
+- name: A newly created zone only becomes usable after a reload
+  ansible.builtin.command: firewall-cmd --reload
+  when: inventory_hostname in groups['rocky'] and hardening_mgmt_zone is changed
+
+- name: The admin network is bound to mgmt by source
+  ansible.posix.firewalld:
+    zone: mgmt
+    source: "{{ mgmt_net }}"
+    state: enabled
+    permanent: true
+    immediate: true
+  when: inventory_hostname in groups['rocky']
+
+- name: mgmt allows ssh and http
+  ansible.posix.firewalld:
+    zone: mgmt
+    service: "{{ item }}"
+    state: enabled
+    permanent: true
+    immediate: true
+  loop: [ssh, http]
+  when: inventory_hostname in groups['rocky']
+
+- name: mgmt allows Zabbix passive checks
+  ansible.posix.firewalld:
+    zone: mgmt
+    port: 10050/tcp
+    state: enabled
+    permanent: true
+    immediate: true
+  when: inventory_hostname in groups['rocky']
+
+- name: public allows http
+  ansible.posix.firewalld:
+    zone: public
+    service: http
+    state: enabled
+    permanent: true
+    immediate: true
+  when: inventory_hostname in groups['rocky']
+
+- name: public allows nothing else (only after mgmt is complete; T16)
+  ansible.posix.firewalld:
+    zone: public
+    service: "{{ item }}"
+    state: disabled
+    permanent: true
+    immediate: true
+  loop: [ssh, cockpit, dhcpv6-client]
+  when: inventory_hostname in groups['rocky']
+
+# --- ufw on mon01 (M1.9) -----------------------------------------------------------------
+- name: ufw allows the lab services from the admin network
+  community.general.ufw:
+    rule: allow
+    from_ip: "{{ mgmt_net }}"
+    to_port: "{{ item.port }}"
+    proto: tcp
+    comment: "{{ item.comment }}"
+  loop:
+    - { port: "22", comment: "ssh (admins + akbackup rsync)" }
+    - { port: "80", comment: "Zabbix web UI" }
+    - { port: "10051", comment: "Zabbix active checks" }
+    - { port: "20514", comment: "rsyslog from web01 (E1)" }
+  when: inventory_hostname in groups['ubuntu']
+
+- name: ufw denies other inbound and allows outbound
+  community.general.ufw:
+    direction: "{{ item.direction }}"
+    default: "{{ item.policy }}"
+  loop:
+    - { direction: incoming, policy: deny }
+    - { direction: outgoing, policy: allow }
+  when: inventory_hostname in groups['ubuntu']
+
+- name: ufw is enabled (ssh is allowed above, so this can't cut off the session)
+  community.general.ufw:
+    state: enabled
+  when: inventory_hostname in groups['ubuntu']

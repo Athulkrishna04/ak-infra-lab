@@ -1,0 +1,56 @@
+---
+# roles/logging - E1.3 central logging: web01 forwards everything to mon01 over TCP 20514.
+
+# --- client side (web nodes) -------------------------------------------------------------
+- name: SELinux lets rsyslogd connect to 20514/tcp (already in the default policy on Rocky 10)
+  community.general.seport:
+    ports: "20514"
+    proto: tcp
+    setype: syslogd_port_t
+    state: present
+  when: inventory_hostname in groups['rocky']
+
+- name: Forward all logs to mon01
+  ansible.builtin.copy:
+    src: "{{ repo_root }}/configs/common/rsyslog.d/90-forward.conf"
+    dest: /etc/rsyslog.d/90-forward.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Test and restart rsyslog
+  when: inventory_hostname in groups['rocky']
+
+# --- receiver side (mon01) ---------------------------------------------------------------
+- name: Directory for remote logs
+  ansible.builtin.file:
+    path: /var/log/remote
+    state: directory
+    owner: syslog
+    group: adm
+    mode: "0750"
+  when: inventory_hostname in groups['ubuntu']
+
+- name: Receiver config (imtcp 20514, one file per host and program)
+  ansible.builtin.copy:
+    src: "{{ repo_root }}/configs/mon01/rsyslog.d/10-remote.conf"
+    dest: /etc/rsyslog.d/10-remote.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Test and restart rsyslog
+  when: inventory_hostname in groups['ubuntu']
+
+- name: Rotation for remote logs
+  ansible.builtin.copy:
+    src: "{{ repo_root }}/configs/mon01/logrotate.d/remote"
+    dest: /etc/logrotate.d/remote
+    owner: root
+    group: root
+    mode: "0644"
+  when: inventory_hostname in groups['ubuntu']
+
+- name: rsyslog is running and enabled
+  ansible.builtin.service:
+    name: rsyslog
+    state: started
+    enabled: true

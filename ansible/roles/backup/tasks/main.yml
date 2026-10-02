@@ -1,14 +1,104 @@
 ---
-# roles/backup - TODO (E3): write this role yourself, in the style of roles/common.
-# Automate exactly what you did by hand, using the files already in this repo:
-#   - scripts/ak-backup.sh -> /usr/local/sbin (0700), systemd/ak-backup.service + .timer
-#   - /root/.ssh/backup_ed25519 generated if missing (community.crypto.openssh_keypair) - never commit the key
-#   - mon01 side: akbackup user, /srv/backups/<host>, authorized_keys entry (ansible.posix.authorized_key, delegate_to: mon01)
-#   - timer enabled
-#
-# Rules: every task idempotent (second run = changed=0); validate config files before
-# installing them (visudo, sshd -t, nginx -t); restart services through handlers only.
+# roles/backup - M3.7-M3.8 + E1.6: nightly tar to akbackup@mon01, key locked to rrsync.
+# Runs on the web node; the mon01 side is configured through delegate_to.
 
-- name: "Placeholder until the backup role is written (E3)"
-  ansible.builtin.debug:
-    msg: "role backup not written yet"
+- name: Backup script
+  ansible.builtin.copy:
+    src: "{{ repo_root }}/scripts/ak-backup.sh"
+    dest: /usr/local/sbin/ak-backup.sh
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Backup units
+  ansible.builtin.copy:
+    src: "{{ repo_root }}/systemd/{{ item }}"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - ak-backup.service
+    - ak-backup.timer
+  notify: Reload systemd for backup
+
+- name: root's .ssh directory
+  ansible.builtin.file:
+    path: /root/.ssh
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+# The private key is generated ON web01 and never leaves it (never in the repo).
+# `creates` makes this idempotent and guarantees an existing key is never replaced.
+- name: Backup key pair (only if missing)
+  ansible.builtin.command: ssh-keygen -q -t ed25519 -N "" -C "root@{{ inventory_hostname }}-backup" -f /root/.ssh/backup_ed25519
+  args:
+    creates: /root/.ssh/backup_ed25519
+
+- name: Read the backup public key
+  ansible.builtin.slurp:
+    src: /root/.ssh/backup_ed25519.pub
+  register: backup_pub
+  failed_when: false        # in --check on a fresh VM the key doesn't exist yet
+
+- name: root on web01 trusts mon01's host key (ak-backup.sh uses BatchMode, so it can't ask)
+  ansible.builtin.known_hosts:
+    path: /root/.ssh/known_hosts
+    name: "{{ mon01_ip }}"
+    key: "{{ lookup('ansible.builtin.pipe', 'ssh-keyscan -t ed25519 ' ~ mon01_ip ~ ' 2>/dev/null') }}"
+    state: present
+
+# --- mon01 side -----------------------------------------------------------------------------
+- name: akbackup receiver account on mon01
+  ansible.builtin.user:
+    name: akbackup
+    shell: /bin/bash
+  delegate_to: mon01
+
+- name: Backup directory for this host on mon01
+  ansible.builtin.file:
+    path: "/srv/backups/{{ inventory_hostname }}"
+    state: directory
+    owner: akbackup
+    group: akbackup
+    mode: "0700"
+  delegate_to: mon01
+
+# E1.6: the key can only write into this host's directory through rrsync; no shell.
+- name: The backup key is authorized on mon01, locked to rrsync
+  ansible.posix.authorized_key:
+    user: akbackup
+    key: "{{ backup_pub.content | b64decode }}"
+    key_options: 'restrict,command="/usr/bin/rrsync -wo /srv/backups/{{ inventory_hostname }}"'
+  delegate_to: mon01
+  when: backup_pub.content is defined
+
+# The prune job is a user crontab (M3.8). Install the repo file only when the live crontab
+# differs, so a second run changes nothing (the cron module would add a second, tagged copy).
+- name: Read akbackup's crontab on mon01 (read-only)
+  ansible.builtin.command: crontab -u akbackup -l
+  register: backup_cron
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  delegate_to: mon01
+
+- name: akbackup's crontab matches configs/mon01/akbackup.cron
+  ansible.builtin.command: "crontab -u akbackup {{ repo_root }}/configs/mon01/akbackup.cron"
+  when: backup_cron.stdout | trim != lookup('ansible.builtin.file', repo_root ~ '/configs/mon01/akbackup.cron') | trim
+  delegate_to: mon01
+
+# --- schedule + first run --------------------------------------------------------------------
+- name: Nightly backup timer is enabled and running
+  ansible.builtin.systemd_service:
+    name: ak-backup.timer
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: First backup on a fresh node (T11/T12 need one archive; skipped once one has run)
+  ansible.builtin.command: systemctl start ak-backup.service
+  args:
+    creates: /var/lib/ak-backup/last_success
