@@ -2,7 +2,7 @@
 
 > *Built and operated a 2-node Linux lab (Rocky Linux 10, Ubuntu 24.04) in VirtualBox: role-based users and sudo, LVM storage with online extension, systemd services with cgroup limits, SSH/firewalld/SELinux hardening, and systemd-timer backups with verified restores; monitored it with Zabbix 7.0 using custom Bash/Python checks and alert triggers.*
 
-**Status:** 🟢 **v1.0 complete** (2026-10-02). The automated test suite shows **20 PASS, 0 FAIL**, and the alert test T10 is recorded. The next steps are hardening, central logging and injected incidents ([roadmap](#roadmap)).
+**Status:** 🟢 **v1.0 + E1 complete** (2026-10-02). The automated test suite shows **23 PASS, 0 FAIL, 0 SKIP**, and the alert test T10 is recorded. Next: patching with change records and injected incidents ([roadmap](#roadmap)).
 
 | Component | Version |
 |---|---|
@@ -15,7 +15,7 @@
 This is two VMs run the way an L1/L2 team runs production:
 
 - **web01** (Rocky Linux 10) serves a website and a small app behind nginx. SELinux is enforcing, firewalld splits a management zone from a public zone, and app data sits on LVM.
-- **mon01** (Ubuntu 24.04) is the ops server. It runs Zabbix 7.0, receives the nightly backups and, in E1, collects the central logs.
+- **mon01** (Ubuntu 24.04) is the ops server. It runs Zabbix 7.0, receives the nightly backups and, in E1, collects web01's logs centrally.
 
 The lab is then broken on purpose and fixed, and every incident gets a written report.
 
@@ -53,12 +53,12 @@ Details: [docs/architecture.md](docs/architecture.md) · IPs, users and ports: [
 
 | Node | OS | IP (host-only) | RAM | Role |
 |---|---|---|---|---|
-| mon01 | Ubuntu Server 24.04 LTS | 192.168.56.10 | 2 GB | Zabbix server + UI, backup target, log receiver (E1), Ansible control (E3) |
+| mon01 | Ubuntu Server 24.04 LTS | 192.168.56.10 | 2 GB | Zabbix server + UI, backup target, central log receiver, Ansible control (E3) |
 | web01 | Rocky Linux 10 | 192.168.56.11 | 1.5 GB | nginx + ak-app, LVM data volume, zabbix-agent2, backup client |
 
 ## Verification
 
-`tests/verify.sh` (run on mon01, 2026-10-02): **20 PASS, 0 FAIL, 3 SKIP**. The three SKIPs are the E1 tests T13, T14 and T20, whose features aren't built yet. T10 (alerting) is manual and passed: "nginx is down on web01" was raised and resolved within 1 minute ([screenshots](docs/screenshots/)). Per-test evidence with real output is in [tests/test-plan.md](tests/test-plan.md).
+`tests/verify.sh` (run on mon01, 2026-10-02): **23 PASS, 0 FAIL, 0 SKIP**, covering T01–T20 (v1.0 + E1). T10 (alerting) is manual and passed: "nginx is down on web01" was raised and resolved within 1 minute ([screenshots](docs/screenshots/)). Per-test evidence with real output is in [tests/test-plan.md](tests/test-plan.md).
 
 Highlights:
 - **Online LVM extension:** `/srv/app` grew from 3.0 to 5.0 GB with `lvextend -r` while a request loop from mon01 got 60/60 `200` responses.
@@ -66,6 +66,10 @@ Highlights:
 - **Backups are proven:** a nightly tar archive (ACLs, xattrs, SELinux labels) plus sha256 is sent to mon01. The restore test matches both file content and SELinux label, and Zabbix alerts if the last backup is older than 25 h.
 - **Least privilege:** there's no root or password SSH (key only, `AllowGroups`). `akdev` may only restart nginx and read its journal. Root is reachable only through the `ops` group.
 - **The firewall really splits zones:** SSH from the labnet side is refused (T16) while HTTP works (T17).
+- **Accountable root (E1):** auditd records account, sudoers and sshd changes, and every root command, against the human login (`auid=akadmin`) even through sudo (T13).
+- **Central logs (E1):** web01 forwards syslog over TCP 20514 to mon01 (SELinux port label checked first), with per-host files and logrotate (T14).
+- **Backup key can't open a shell (E1):** web01's key on mon01 is forced to `rrsync -wo /srv/backups/web01`; a shell attempt is refused, backups still run.
+- **Every listening port is explained** ([IP plan](docs/ip-plan.md#listening-ports-e15-review-2026-10-02-ss--tuln)); the review found and disabled an unneeded snmpd pulled in by Zabbix.
 
 ## Lessons from the build
 
@@ -75,6 +79,7 @@ Real problems hit along the way, each fixed and written into the guide:
 - **zabbix-server wasn't enabled at boot.** It ran fine until the reboot test exposed it.
 - **The laptop's sleep paused the VMs**, leaving both clocks 9 h 15 min slow. chrony now uses `makestep 1 -1`.
 - **kdump failed on a 1.5 GB VM** (no crashkernel reservation), so it was disabled and the reservation removed.
+- **Test bugs, not system bugs:** a buffered sudo prompt and a `pipefail` + `grep -q` SIGPIPE gave false failures until fixed ([details](tests/test-plan.md#evidence)).
 - **VirtualBox 7.2 quirks:** the wizard's unattended install created the wrong user and no LVM, a live snapshot hung (now always offline), and the host-only adapter disappeared and had to be recreated.
 
 ## Incidents
@@ -108,7 +113,7 @@ Follow [docs/build-guide.md](docs/build-guide.md) from M0. In short:
 
 ## Roadmap
 
-- **E1:** auditd, sysctl hardening, central rsyslog, password aging, locked-down backup key
+- ~~**E1:** auditd, sysctl hardening, central rsyslog, password aging, locked-down backup key~~ ✅ done 2026-10-02
 - **E2:** patching with change records, 8 injected incidents with RCAs
 - **E3:** Ansible rebuild (second run `changed=0`)
 - **E4:** cgroup/namespace demos, performance baselines, NFS + autofs

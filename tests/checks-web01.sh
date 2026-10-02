@@ -64,10 +64,13 @@ else
 fi
 
 # T13 (E1) audit trail for identity changes
-if auditctl -l 2>/dev/null | grep -q -- '-k identity\|key=identity'; then
-  useradd -M -s /sbin/nologin akprobe13 && userdel akprobe13
+# Capture first, then grep: with pipefail, `ausearch | grep -q` fails when grep exits on the
+# first match and ausearch dies of SIGPIPE mid-write (the false FAIL seen on 2026-10-02).
+if grep -q -- '-k identity\|key=identity' <<<"$(auditctl -l 2>/dev/null)"; then
+  useradd -M -K CREATE_MAIL_SPOOL=no -s /sbin/nologin akprobe13 && userdel akprobe13
+  rm -f /var/spool/mail/akprobe13   # left behind by earlier runs without CREATE_MAIL_SPOOL=no
   sleep 1
-  if ausearch -k identity -ts recent -i 2>/dev/null | grep -q akprobe13; then
+  if grep -q akprobe13 <<<"$(ausearch -k identity -ts recent -i 2>/dev/null)"; then
     pass "T13 web01 useradd/userdel recorded under key identity"
   else
     fail "T13 web01 no identity audit event for akprobe13"

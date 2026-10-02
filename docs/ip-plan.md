@@ -67,6 +67,28 @@ mon01 was installed **without LVM**: one ext4 root partition (`sda2`, 25 GB). `/
 | web01 (root) | mon01 (akbackup) | 22/tcp | rsync over SSH backups | mon01 ufw + `AllowGroups` |
 | web01 nginx | web01 127.0.0.1 | 8080/tcp | Reverse proxy to ak-app | SELinux boolean (INC-001) |
 
+## Listening ports (E1.5 review, 2026-10-02, `ss -tuln`)
+
+Every listening socket must be explained. Anything that isn't gets disabled.
+
+| Node | Proto / address | Service | Why it's there | Reachable from |
+|---|---|---|---|---|
+| web01 | tcp 0.0.0.0:22, [::]:22 | sshd | Administration | mgmt zone only (192.168.56.0/24) |
+| web01 | tcp 0.0.0.0:80, [::]:80 | nginx | Website + `/app/` proxy | mgmt and public zones |
+| web01 | tcp 127.0.0.1:8080 | ak-app (python http.server) | Backend behind nginx | localhost only |
+| web01 | tcp *:10050 | zabbix-agent2 | Passive checks from mon01 | mgmt zone only |
+| web01 | udp 127.0.0.1:323, [::1]:323 | chronyd | `chronyc` control socket | localhost only |
+| mon01 | tcp 0.0.0.0:22, [::]:22 | sshd | Administration, backups (akbackup) | ufw: 192.168.56.0/24 |
+| mon01 | tcp 0.0.0.0:80 | nginx | Zabbix web UI | ufw: 192.168.56.0/24 |
+| mon01 | tcp 0.0.0.0:10051, [::]:10051 | zabbix-server | Active agent checks | ufw: 192.168.56.0/24 |
+| mon01 | tcp 0.0.0.0:20514, [::]:20514 | rsyslogd (imtcp) | Central log receiver (E1) | ufw: 192.168.56.0/24 |
+| mon01 | tcp *:10050 | zabbix-agent2 | Server monitors itself | blocked by ufw (no rule); used via localhost |
+| mon01 | tcp 127.0.0.1:3306 | mariadb | Zabbix database | localhost only |
+| mon01 | tcp/udp 127.0.0.53:53, 127.0.0.54:53 | systemd-resolved | Local DNS stub | localhost only |
+| mon01 | udp 10.0.10.5:68 | systemd-networkd | DHCP client on labnet | n/a (client) |
+| mon01 | udp 127.0.0.1:323, [::1]:323 | chrony | `chronyc` control socket | localhost only |
+| mon01 | udp 127.0.0.1:161, [::1]:161 | ~~snmpd~~ | **Not needed.** Pulled in as a "recommended" package with Zabbix, with no access config | **Disabled** 2026-10-02 (`systemctl disable --now snmpd`); 0 sockets on :161 afterwards |
+
 ## Snapshots (at most 3 per VM)
 
 | Name | Taken | Purpose |

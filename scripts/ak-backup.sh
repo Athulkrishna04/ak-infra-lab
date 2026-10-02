@@ -13,8 +13,10 @@ DIR=/var/backups/ak                              # local staging copy (kept 3 da
 STATE=/var/lib/ak-backup                         # last_success timestamp for Zabbix
 NAME="${HOST}_${STAMP}.tar.gz"
 KEY=/root/.ssh/backup_ed25519
-# E1 locks the key to rrsync on mon01; then change DEST to "akbackup@192.168.56.10:./"
-DEST="akbackup@192.168.56.10:/srv/backups/${HOST}/"
+# Since E1 the key is locked to "rrsync -wo /srv/backups/<host>" on mon01 (tools/lock-backup-key.sh),
+# so the destination is relative to that directory. Before E1 it was the absolute path
+# akbackup@192.168.56.10:/srv/backups/${HOST}/
+DEST="akbackup@192.168.56.10:./"
 PATHS=(/etc /srv/www /srv/app)
 
 mkdir -p "$DIR" "$STATE"

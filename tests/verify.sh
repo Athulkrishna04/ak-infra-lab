@@ -61,8 +61,11 @@ fi
 echo
 echo "== web01 local checks (sudo password for akadmin@web01) =="
 scp -q "$here/checks-web01.sh" akadmin@"$WEB":/tmp/ak-checks-web01.sh
+# Straight into tee (it never buffers). A `tr -d '\r'` here held back the sudo prompt until
+# web01 closed the connection (sudo then timed out), and stripping \r staircased the output.
+# The \r left in $results is harmless: the summary only counts lines starting with PASS/FAIL.
 ssh -t akadmin@"$WEB" "sudo bash /tmp/ak-checks-web01.sh; rm -f /tmp/ak-checks-web01.sh" \
-  | tr -d '\r' | tee -a "$results"
+  | tee -a "$results"
 
 echo
 echo "== mon01 local checks (sudo password for akadmin@mon01) =="

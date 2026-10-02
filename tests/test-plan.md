@@ -21,14 +21,14 @@ Fill in **Result** and **Evidence** with what you actually observed. Evidence is
 | T11 | M3 | Backup scheduled + ran | `systemctl list-timers ak-backup.timer`, `ls /var/lib/ak-backup/` (web01) | next run listed; `last_success` present | PASS | verify.sh 2026-10-02 |
 | T12a | M3 | Backup integrity | `sha256sum -c <newest>.sha256` in `/srv/backups/web01` (mon01, sudo) | `…: OK` | PASS | verify.sh 2026-10-02 |
 | T12b | M3 | Restore works | extract `etc/ssh/sshd_config` from the newest archive into a temp dir and `cmp` it with the live file; compare `stat -c %C` (web01) | identical content **and** SELinux label | PASS | verify.sh 2026-10-02 |
-| T13 | E1 | Audit trail | `sudo useradd -M t13 && sudo userdel t13`, then `sudo ausearch -k identity -i -ts recent` (web01) | useradd/userdel events with `auid=akadmin` | SKIP (E1) |  |
-| T14 | E1 | Central logs | `logger -t t14 hello` (web01); `sudo grep hello /var/log/remote/web01/t14.log` (mon01) | line present | SKIP (E1) |  |
+| T13 | E1 | Audit trail | `sudo useradd -M t13 && sudo userdel t13`, then `sudo ausearch -k identity -i -ts recent` (web01) | useradd/userdel events with `auid=akadmin` | PASS | verify.sh 2026-10-02 (E1) |
+| T14 | E1 | Central logs | `logger -t t14 hello` (web01); `sudo grep hello /var/log/remote/web01/t14.log` (mon01) | line present | PASS | verify.sh 2026-10-02 (E1) |
 | T15 | M3 | Health check | `/usr/local/bin/healthcheck.sh; echo $?` (both) | `OK: <host> healthy` and `0` | PASS | verify.sh 2026-10-02 |
 | T16 | M1 | SSH via public zone refused *(neg)* | from mon01: connect to web01's **10.0.10.x** address on port 22 | connection refused / times out | PASS | verify.sh 2026-10-02 |
 | T17 | M2 | HTTP via public zone | `curl -s -o /dev/null -w '%{http_code}' http://<web01 10.0.10.x>/` (mon01) | `200` | PASS | verify.sh 2026-10-02 |
 | T18 | M1 | Time sync | `chronyc tracking` (both) | `Leap status : Normal` | PASS | verify.sh 2026-10-02 |
 | T19 | M1 | Devs can't stop nginx *(neg)* | `sudo -l -U akdev /usr/bin/systemctl stop nginx; echo $?` (web01) | exit status `1` | PASS | verify.sh 2026-10-02 |
-| T20 | E1 | Kernel hardening | `sysctl -n kernel.dmesg_restrict` (web01) | `1` | SKIP (E1) |  |
+| T20 | E1 | Kernel hardening | `sysctl -n kernel.dmesg_restrict` (web01) | `1` | PASS | verify.sh 2026-10-02 (E1) |
 
 `verify.sh` also prints **T09s** (the `zabbix-server` service is active on mon01).
 
@@ -57,6 +57,43 @@ Then do T10 by hand whenever the fix touched nginx, firewalld or Zabbix.
 Reboot web01 (`sudo systemctl reboot`), wait about a minute, then run `verify.sh`. Nothing may need a manual step to come back: `/srv/app` mounts, ak-app and nginx start, and the backup timer is scheduled.
 
 ## Evidence
+
+### E1 run of `verify.sh` (2026-10-02 19:26, on mon01)
+
+```text
+== SUMMARY: 23 PASS, 0 FAIL, 0 SKIP ==
+web01: PASS T03 T04 T06 T07 T08 T11 T12b T13 T15 T18 T19 T20
+mon01: PASS T12a T14 T09s T15 T18
+cross-node (from mon01): PASS T01 T02 T05 T09 T16 T17
+T14: token 't14-1790949429' sent from web01, found in mon01:/var/log/remote/web01/t14.log
+```
+
+### T13 audit records (2026-10-02 19:25, web01, `ausearch -i`)
+
+```text
+type=ADD_USER ... uid=root auid=akadmin ses=98 msg='op=add-user acct=akprobe13 exe=/usr/sbin/useradd ... res=success'
+type=DEL_USER ... uid=root auid=akadmin ses=98 msg='op=delete-user id=akprobe13 exe=/usr/sbin/userdel ... res=success'
+type=PROCTITLE ... : proctitle=userdel akprobe13
+type=SYSCALL ... comm="userdel" exe="/usr/sbin/userdel" auid=1000 uid=0 ... key="identity"
+```
+
+The account change ran as root through sudo, yet every record names the human who did it (`auid=akadmin`).
+
+### E1 changes verified outside verify.sh (2026-10-02)
+
+```text
+T20 sysctl (both): kernel.dmesg_restrict=1 kernel.kptr_restrict=2 net.ipv4.tcp_syncookies=1 vm.swappiness=10
+backup via rrsync-locked key: OK, ak.backup.age = 109 s
+shell with the backup key:    /usr/bin/rrsync error: SSH_ORIGINAL_COMMAND does not run rsync   (refused, as intended)
+SELinux after E1 (web01):     0 AVC denials
+login banner + PASS_MAX_DAYS 90 / PASS_WARN_AGE 7 on both
+snmpd (unneeded, localhost UDP 161) disabled on mon01 after the ss -tuln review; 0 sockets on :161
+```
+
+Three test-script bugs were found and fixed on the way to 23/0/0:
+1. **Hidden sudo prompt.** `ssh -t … | tr -d '\r' | tee` buffered web01's `[sudo] password` prompt (it has no newline) until the connection closed, so the prompt never appeared and sudo timed out after 5 minutes. Stripping `\r` also staircased the output. Fix: pipe straight into `tee`.
+2. **False T13 FAIL from `pipefail`.** `ausearch … | grep -q akprobe13`: grep exits on the first match, ausearch dies of SIGPIPE mid-write, and `pipefail` reports the pipeline as failed. The audit records were there all along (above). Fix: capture the output first, then grep it.
+3. **Leftover mail spool.** `useradd -M` still created `/var/spool/mail/akprobe13`, and plain `userdel` leaves it. Fix: `-K CREATE_MAIL_SPOOL=no` plus cleanup.
 
 ### v1.0 run of `verify.sh` (2026-10-02, on mon01)
 

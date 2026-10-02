@@ -931,7 +931,9 @@ On GitHub: set the repo to **Public**, add the topics `linux rocky-linux ubuntu 
 
 ### E1.1 auditd (T13)
 
+On Rocky/RHEL **10** the rules tooling (`/etc/audit/rules.d/`, `augenrules`) is in a separate package, **`audit-rules`**, which a Minimal install doesn't include. Without it, the `install` below fails with `/etc/audit/rules.d/: Not a directory`.
 ```bash
+web01$ sudo dnf -y install audit-rules
 web01$ sudo install -m 0640 ~/ak-infra-lab/configs/common/audit/rules.d/50-ak.rules /etc/audit/rules.d/
 web01$ sudo augenrules --load
 web01$ sudo auditctl -l
