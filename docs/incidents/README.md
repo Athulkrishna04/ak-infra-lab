@@ -39,5 +39,6 @@ Don't read the "Expected path" column before you've done the fault. It's here so
 | [INC-005](INC-005-selinux-wrong-label-403.md) | `/` returns 403: index.html labelled `user_tmp_t` (moved from /tmp) | 2026-10-02 | ~4 min | yes (ak-chaos random) |
 | [INC-006](INC-006-firewalld-mgmt-http-removed.md) | Site unreachable from mgmt: firewalld `mgmt` zone lost `http` (no Zabbix alert) | 2026-10-02 | ~5 min | yes (ak-chaos random) |
 | [INC-007](INC-007-akdev-account-expired.md) | akdev can't log in: account expired (`chage -E 0`), client only says `publickey` | 2026-10-02 | ~6 min | yes (ak-chaos random) |
+| [INC-008](INC-008-fstab-typo-emergency-mode.md) | Boot stops in emergency mode: one wrong character in the /srv/app UUID in fstab | 2026-10-02 | ~15 min | by hand (drill) |
 | [INC-009](INC-009-root-password-reset.md) | Forgotten root password: `rd.break` asks for root on Rocky 10, reset via `init=/bin/bash` | 2026-10-02 | ~15 min | by hand (drill) |
 | [INC-010](INC-010-sshd-persourcepenalties-admin-lockout.md) | Admin workstation locked out by sshd `PerSourcePenalties` (`LoginGraceTime 30` vs slow passphrase) | 2026-10-02 | ~10 min | natural |

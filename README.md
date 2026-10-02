@@ -1,8 +1,8 @@
 # ak-infra-lab: a hardened, monitored, backed-up Linux mini fleet
 
-> *Built and operated a 2-node Linux lab (Rocky Linux 10, Ubuntu 24.04) in VirtualBox: role-based users and sudo, LVM storage with online extension, systemd services with cgroup limits, SSH/firewalld/SELinux hardening, and systemd-timer backups with verified restores; monitored it with Zabbix 7.0 using custom Bash/Python checks and alert triggers.*
+> *Built and operated a 2-node Linux lab (Rocky Linux 10, Ubuntu 24.04) in VirtualBox: role-based users and sudo, LVM storage with online extension, systemd services with cgroup limits, SSH/firewalld/SELinux hardening, and systemd-timer backups with verified restores; monitored it with Zabbix 7.0 (custom Bash/Python checks, alert triggers), auditd and centralized rsyslog; resolved 8 injected incidents with written root-cause analyses and runbooks, and ran patching through change records with rollback plans.*
 
-**Status:** 🟢 **v1.0 + E1 complete** (2026-10-02). The automated test suite shows **23 PASS, 0 FAIL, 0 SKIP**, and the alert test T10 is recorded. Next: patching with change records and injected incidents ([roadmap](#roadmap)).
+**Status:** 🟢 **v1.1 complete** (2026-10-02): v1.0 build + E1 hardening/central logging + E2 patching and break/fix. The automated test suite shows **23 PASS, 0 FAIL, 0 SKIP**; 2 patch changes ([CHG-001](docs/changes/CHG-001-security-patching-web01.md), [CHG-002](docs/changes/CHG-002-patching-mon01.md)) and **10 incident write-ups** (8 injected, 6 of them blind, plus 2 that happened naturally). Next: Ansible rebuild ([roadmap](#roadmap)).
 
 | Component | Version |
 |---|---|
@@ -80,6 +80,10 @@ Real problems hit along the way, each fixed and written into the guide:
 - **The laptop's sleep paused the VMs**, leaving both clocks 9 h 15 min slow. chrony now uses `makestep 1 -1`.
 - **kdump failed on a 1.5 GB VM** (no crashkernel reservation), so it was disabled and the reservation removed.
 - **Test bugs, not system bugs:** a buffered sudo prompt and a `pipefail` + `grep -q` SIGPIPE gave false failures until fixed ([details](tests/test-plan.md#evidence)).
+- **E2 patching:** CHG-001 applied RLSA-2026:74001 (expat) and RLSA-2026:73954 (openssh) on web01, CHG-002 the apt updates on mon01, each with a logged script that reboots only if every post-check passes. Both records honestly note that the pre-check was red (clocks unsynchronised) and should have stopped the change.
+- **Monitoring blind spot found and closed:** in INC-006 every admin lost the site while Zabbix stayed green (its check runs on the box). An external web scenario from mon01 now catches it within 4 s, proven by re-injecting the fault.
+- **Version-specific knowledge:** on Rocky 10 the classic `rd.break` root-password reset stops at a root-password prompt; `init=/bin/bash` works ([INC-009](docs/incidents/INC-009-root-password-reset.md)). OpenSSH 9.9's `PerSourcePenalties` plus our own `LoginGraceTime 30` locked the admin out ([INC-010](docs/incidents/INC-010-sshd-persourcepenalties-admin-lockout.md)).
+- **Host stalls show up in the guests:** after the laptop was busy or asleep, web01 logged `clocksource: Long readout interval` and `systemd-journald` was killed by its watchdog once (restarted automatically). That's the same root cause as the clock drift.
 - **VirtualBox 7.2 quirks:** the wizard's unattended install created the wrong user and no LVM, a live snapshot hung (now always offline), and the host-only adapter disappeared and had to be recreated.
 
 ## Incidents
@@ -93,6 +97,7 @@ Real problems hit along the way, each fixed and written into the guide:
 | INC-005 | `/` returns 403 while `/app/` works: index.html carried the `/tmp` label `user_tmp_t`; the AVC plus `matchpathcon`/`restorecon`, SELinux kept enforcing (blind, E2) | [INC-005](docs/incidents/INC-005-selinux-wrong-label-403.md) |
 | INC-006 | Site unreachable from the mgmt network: `http` removed from the firewalld `mgmt` zone (runtime + permanent); **Zabbix stayed green**, because its check runs on the box (blind, E2). Follow-up: an external web scenario from mon01 now catches it in 4 s | [INC-006](docs/incidents/INC-006-firewalld-mgmt-http-removed.md) |
 | INC-007 | akdev can't log in: the account was expired (`Account expires: Jan 01, 1970`), while the client only showed `Permission denied (publickey)` (blind, E2) | [INC-007](docs/incidents/INC-007-akdev-account-expired.md) |
+| INC-008 | Boot stops in emergency mode: one wrong character in the /srv/app UUID in fstab; `fstab` vs `blkid` on the console, then `mount -a` + `findmnt --verify` before rebooting (drill, E2) | [INC-008](docs/incidents/INC-008-fstab-typo-emergency-mode.md) |
 | INC-009 | Forgotten root password reset from the console: the classic `rd.break` now demands the root password on Rocky 10, `init=/bin/bash` works; SELinux relabel verified (drill, E2) | [INC-009](docs/incidents/INC-009-root-password-reset.md) |
 | INC-010 | Admin workstation locked out of web01: OpenSSH 9.9 `PerSourcePenalties` + our `LoginGraceTime 30` vs a slow passphrase prompt; diagnosed through `ssh -J mon01` (natural, E2) | [INC-010](docs/incidents/INC-010-sshd-persourcepenalties-admin-lockout.md) |
 
@@ -122,7 +127,7 @@ Follow [docs/build-guide.md](docs/build-guide.md) from M0. In short:
 ## Roadmap
 
 - ~~**E1:** auditd, sysctl hardening, central rsyslog, password aging, locked-down backup key~~ ✅ done 2026-10-02
-- **E2:** patching with change records, 8 injected incidents with RCAs
+- ~~**E2:** patching with change records, 8 injected incidents with RCAs~~ ✅ done 2026-10-02 (tag `v1.1`)
 - **E3:** Ansible rebuild (second run `changed=0`)
 - **E4:** cgroup/namespace demos, performance baselines, NFS + autofs
 - **E5:** Zabbix 7.0 → 8.0 upgrade once 8.0 is GA

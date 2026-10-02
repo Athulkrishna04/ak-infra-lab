@@ -1047,8 +1047,10 @@ Space them out, one or two per evening, so you don't remember what's left. `ak-c
 
 ### E2.4 Two boot-level incidents by hand
 
+Do **INC-009 first**: it ends with a root password you know, and INC-008's emergency prompt needs exactly that. `tools/inject-rootpw.sh` and `tools/inject-fstab.sh` do the injections. Both drills happen on the VM console (VirtualBox window, *Start → Normal Start*). Usernames at the console are `root` / `akadmin`, never the machine name.
+
 - **INC-008, fstab typo → emergency mode:** snapshot, then follow the "Inject" column in [incidents/README.md](incidents/README.md) and recover with [runbooks/emergency-mode-fstab.md](runbooks/emergency-mode-fstab.md).
-- **INC-009, forgotten root password:** snapshot, then follow [runbooks/root-password-reset.md](runbooks/root-password-reset.md). This is also RHCSA practice.
+- **INC-009, forgotten root password:** snapshot, then follow [runbooks/root-password-reset.md](runbooks/root-password-reset.md). This is also RHCSA practice. **Rocky 10:** `rd.break` stops at "Give root password for maintenance"; use `init=/bin/bash` (tested, see INC-009).
 
 ### E2.5 Update and publish
 
