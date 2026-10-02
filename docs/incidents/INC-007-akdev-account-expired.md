@@ -90,7 +90,13 @@ sudo chage -l akdev | grep 'Account expires'   # -> never
 
 ## 6. Verification
 
-- Account restored by `ak-chaos.sh restore` (`chage -E -1 akdev`).
+- Account restored by `ak-chaos.sh restore` (`chage -E -1 akdev`); `chage -l akdev` → `Account expires : never`.
+- **Valid re-test as the user** (with akdev's passphrase, through `ssh -J mon01`, because the direct path was temporarily blocked, see [INC-010](INC-010-sshd-persourcepenalties-admin-lockout.md)):
+  ```text
+  PS> ssh -J mon01 -i ~/.ssh/akdev_ed25519 -o IdentitiesOnly=yes akdev@192.168.56.11 id
+  Enter passphrase for key 'C:\Users\ATHUL KRISHNA/.ssh/akdev_ed25519':
+  uid=1001(akdev) gid=1003(akdev) groups=1003(akdev),1002(devs) context=unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023
+  ```
 - Regression: the next `verify.sh` (Part F) covers T03/T19, akdev's sudo rights. Login as akdev is not covered by `verify.sh` (see Prevention).
 
 ## 7. Prevention

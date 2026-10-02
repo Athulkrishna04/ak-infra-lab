@@ -37,3 +37,4 @@ Don't read the "Expected path" column before you've done the fault. It's here so
 | [INC-004](INC-004-nginx-config-missing-semicolon.md) | Website down: nginx won't start after a config edit (missing `;`) | 2026-10-02 | ~6 min | yes (ak-chaos random) |
 | [INC-006](INC-006-firewalld-mgmt-http-removed.md) | Site unreachable from mgmt: firewalld `mgmt` zone lost `http` (no Zabbix alert) | 2026-10-02 | ~5 min | yes (ak-chaos random) |
 | [INC-007](INC-007-akdev-account-expired.md) | akdev can't log in: account expired (`chage -E 0`), client only says `publickey` | 2026-10-02 | ~6 min | yes (ak-chaos random) |
+| [INC-010](INC-010-sshd-persourcepenalties-admin-lockout.md) | Admin workstation locked out by sshd `PerSourcePenalties` (`LoginGraceTime 30` vs slow passphrase) | 2026-10-02 | ~10 min | natural |

@@ -91,6 +91,7 @@ Real problems hit along the way, each fixed and written into the guide:
 | INC-004 | Site down: nginx won't start after a config edit; one missing `;`, found with `nginx -t`, `diff` against the repo and auditd (blind, E2) | [INC-004](docs/incidents/INC-004-nginx-config-missing-semicolon.md) |
 | INC-006 | Site unreachable from the mgmt network: `http` removed from the firewalld `mgmt` zone (runtime + permanent); **Zabbix stayed green**, because its check runs on the box (blind, E2). Follow-up: an external web scenario from mon01 now catches it in 4 s | [INC-006](docs/incidents/INC-006-firewalld-mgmt-http-removed.md) |
 | INC-007 | akdev can't log in: the account was expired (`Account expires: Jan 01, 1970`), while the client only showed `Permission denied (publickey)` (blind, E2) | [INC-007](docs/incidents/INC-007-akdev-account-expired.md) |
+| INC-010 | Admin workstation locked out of web01: OpenSSH 9.9 `PerSourcePenalties` + our `LoginGraceTime 30` vs a slow passphrase prompt; diagnosed through `ssh -J mon01` (natural, E2) | [INC-010](docs/incidents/INC-010-sshd-persourcepenalties-admin-lockout.md) |
 
 Catalog of all planned incidents: [docs/incidents/README.md](docs/incidents/README.md).
 
