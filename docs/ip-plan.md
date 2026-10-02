@@ -89,10 +89,13 @@ Every listening socket must be explained. Anything that isn't gets disabled.
 | mon01 | udp 127.0.0.1:323, [::1]:323 | chrony | `chronyc` control socket | localhost only |
 | mon01 | udp 127.0.0.1:161, [::1]:161 | ~~snmpd~~ | **Not needed.** Pulled in as a "recommended" package with Zabbix, with no access config | **Disabled** 2026-10-02 (`systemctl disable --now snmpd`); 0 sockets on :161 afterwards |
 
-## Snapshots (at most 3 per VM)
+## Snapshots (at most 3 per VM, always taken with the VM powered off)
 
 | Name | Taken | Purpose |
 |---|---|---|
 | `clean-install` | end of M0 | Fresh OS, static IPs, nothing else |
-| `baseline-M1` | end of M1 | Users, keys, SSH/firewall hardening |
-| `pre-patch-latest` | before every patch run or risky change (replace the old one) | Rollback point |
+| `baseline-M3` | end of M3 | Monitoring + backups working (v1.0 state) |
+| `baseline-E1` | 2026-10-02 19:35, end of E1 | Hardened + central logging, `verify.sh` 23/0/0 |
+| `pre-patch-latest` | before every patch run or risky change (E2+) | Rollback point; replaces the oldest baseline |
+
+`baseline-M1` and `baseline-M2` were rotated out as newer baselines were taken.
