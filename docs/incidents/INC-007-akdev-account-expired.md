@@ -35,7 +35,16 @@ Authorized use only. Activity on this system is logged and audited.
 akdev@192.168.56.11: Permission denied (publickey).
 ```
 
-What it told me: the client's view says *publickey*, which suggests a key problem. That's **misleading**: sshd gives the same generic answer for every refusal, so the reason can only be found on the server.
+What it told me, read at the time: *publickey*, a key problem? **Corrected afterwards: this test proved nothing.** akdev's private key is passphrase-protected, and `-o BatchMode=yes` forbids ssh to ask for the passphrase. `ssh -v` (after the fix, 21:4x) shows the sequence:
+
+```text
+debug1: Offering public key: …/akdev_ed25519 ED25519 SHA256:H9fkJlq7…/OI explicit
+debug1: Server accepts key: …/akdev_ed25519 ED25519 SHA256:H9fkJlq7…/OI explicit
+debug1: no identity pubkey loaded from …/akdev_ed25519        <- can't decrypt the private key without the passphrase
+akdev@192.168.56.11: Permission denied (publickey).
+```
+
+The server *accepts* the key, but ssh can't sign with it, so it gives up. That fails the same way **with or without the fault**. A reproduction is only evidence if it would succeed on a healthy system, so check that first. Correct test: without `BatchMode`, typing akdev's passphrase (section 6).
 
 ### 3.2 Server side: what sshd logged, and the account's state (web01)
 
@@ -64,11 +73,11 @@ What it told me:
 - Ruled out **hypothesis 2**: akdev is still in `devs`.
 - Ruled out a **locked password**: `passwd -S` shows `P` (usable password), not `LK`. Expiry and locking are different controls. Expiry (`chage -E`) blocks every login method, keys included. Locking (`usermod -L` / `passwd -l`) only disables the password.
 - Note the **password** policy: max 90 days, warning 7. Those come from the E1 `login.defs` change (`PASS_MAX_DAYS 90`), so the password expires Dec 30, 2026. That's working as intended, and it's a different thing from the **account** expiry.
-- The only sshd line names nothing more than `Connection reset by authenticating user akdev … [preauth]`. **The log doesn't say "expired"**, so `chage -l` was the deciding check, not the log.
+- The only sshd line, `Connection reset by authenticating user akdev … [preauth]`, comes from the flawed test in 3.1 (the client gave up before signing), so it says nothing about expiry. **`chage -l` was the deciding evidence**, not the log, and not the client error.
 
 ## 4. Root cause
 
-akdev's account expiry date was set to day 0 (`chage -E 0 akdev`, shown as `Account expires: Jan 01, 1970`). sshd (its own shadow-expiry check, plus PAM's account stage) refuses an expired account for every login method, so it rejected akdev's valid key and the client only saw the generic `Permission denied (publickey)`.
+akdev's account expiry date was set to day 0 (`chage -E 0 akdev`, shown as `Account expires: Jan 01, 1970`). sshd (its own shadow-expiry check, plus PAM's account stage) refuses an expired account for every login method, so akdev couldn't log in with any method. (The `Permission denied (publickey)` seen in 3.1 was a test artifact, see the correction there. The root cause rests on `chage -l` and is confirmed by the reveal.)
 
 ## 5. Fix
 
