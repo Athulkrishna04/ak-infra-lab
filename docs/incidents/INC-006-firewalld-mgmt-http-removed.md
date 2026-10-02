@@ -159,4 +159,15 @@ restored: firewall-http (marked done)
 
 ## 10. Follow-up
 
-- [ ] Add the external HTTP check on mon01 (simple check or web scenario on `http://192.168.56.11/`), re-inject `firewall-http` by name (`ak-chaos.sh inject firewall-http`, not blind) and record that the new trigger fires.
+- [x] **Done 2026-10-02.** Added the external check: the Zabbix web scenario `ext-http-mgmt` on host web01, run by the server on mon01 every 30 s against `http://192.168.56.11/` and `/app/`, with the trigger **"web01 website unreachable from mon01 (mgmt network)"** (High, `last(/web01/web.test.fail[ext-http-mgmt])<>0`). Re-injected `firewall-http` by name and held it for 2 minutes:
+
+  | Time | Event |
+  |---|---|
+  | 21:20:57 | Fault re-injected (not blind) |
+  | **21:21:01** | **New trigger raised, 4 s after the fault** |
+  | 21:23:01 | RESOLVED after the restore (duration 2m) |
+  | (none) | "nginx is down on web01" stayed quiet, as it should |
+
+  The same failure that produced **zero alerts** at 20:50 is now caught within one check interval. Evidence: [scenario OK](../screenshots/INC-006-ext-check-ok.png), [problem fired and resolved](../screenshots/INC-006-ext-check-fired.png). Settings: [zabbix/README.md](../../zabbix/README.md#host-web01-external-http-check-inc-006-follow-up-2026-10-02).
+
+  A first attempt at 21:17:40 was restored within seconds, before the 30 s scenario had sampled, and showed nothing. Same lesson as T10: hold a fault for at least two check intervals when testing an alert.
