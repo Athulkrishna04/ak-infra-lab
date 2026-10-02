@@ -90,6 +90,7 @@ Real problems hit along the way, each fixed and written into the guide:
 | INC-002 | /srv/app at 95%: a hidden 4.6 GB temp file; proven safe to delete (`lsof`, content, auditd) instead of growing the LV (blind, E2) | [INC-002](docs/incidents/INC-002-disk-full-hidden-tempfile.md) |
 | INC-004 | Site down: nginx won't start after a config edit; one missing `;`, found with `nginx -t`, `diff` against the repo and auditd (blind, E2) | [INC-004](docs/incidents/INC-004-nginx-config-missing-semicolon.md) |
 | INC-006 | Site unreachable from the mgmt network: `http` removed from the firewalld `mgmt` zone (runtime + permanent); **Zabbix stayed green**, because its check runs on the box (blind, E2). Follow-up: an external web scenario from mon01 now catches it in 4 s | [INC-006](docs/incidents/INC-006-firewalld-mgmt-http-removed.md) |
+| INC-007 | akdev can't log in: the account was expired (`Account expires: Jan 01, 1970`), while the client only showed `Permission denied (publickey)` (blind, E2) | [INC-007](docs/incidents/INC-007-akdev-account-expired.md) |
 
 Catalog of all planned incidents: [docs/incidents/README.md](docs/incidents/README.md).
 
