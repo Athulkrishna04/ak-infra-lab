@@ -1,10 +1,14 @@
 # ak-infra-lab: a hardened, monitored, backed-up Linux mini fleet
 
-> **Target resume line (v1.0; use it only once it's true):**
 > *Built and operated a 2-node Linux lab (Rocky Linux 10, Ubuntu 24.04) in VirtualBox: role-based users and sudo, LVM storage with online extension, systemd services with cgroup limits, SSH/firewalld/SELinux hardening, and systemd-timer backups with verified restores; monitored it with Zabbix 7.0 using custom Bash/Python checks and alert triggers.*
 
-**Status:** 🟡 planned. The build hasn't started ([build guide](docs/build-guide.md)).
-**Versions:** VirtualBox `7.2.x` · Rocky Linux `10.x` · Ubuntu Server `24.04.x` · Zabbix `7.0.x LTS` *(fill in the exact versions you used)*
+**Status:** 🟢 **v1.0 complete** (2026-10-02). The automated test suite shows **20 PASS, 0 FAIL**, and the alert test T10 is recorded. The next steps are hardening, central logging and injected incidents ([roadmap](#roadmap)).
+
+| Component | Version |
+|---|---|
+| Host | Windows 11 laptop (i3-1115G4, 8 GB), VirtualBox **7.2.20** |
+| web01 | Rocky Linux **10.2**, kernel 6.12.0-211.61.1, nginx 1.26.3, zabbix-agent2 7.0.31 |
+| mon01 | Ubuntu Server **24.04.5 LTS**, kernel 6.8.0-146, Zabbix server/frontend **7.0.31 LTS**, MariaDB 10.11.14 |
 
 ## What it is
 
@@ -54,13 +58,30 @@ Details: [docs/architecture.md](docs/architecture.md) · IPs, users and ports: [
 
 ## Verification
 
-*Not run yet.* After M4, paste the `tests/verify.sh` summary line here, e.g. "18 PASS, 0 FAIL, 3 SKIP (E1 tests)". Results with evidence go in [tests/test-plan.md](tests/test-plan.md).
+`tests/verify.sh` (run on mon01, 2026-10-02): **20 PASS, 0 FAIL, 3 SKIP**. The three SKIPs are the E1 tests T13, T14 and T20, whose features aren't built yet. T10 (alerting) is manual and passed: "nginx is down on web01" was raised and resolved within 1 minute ([screenshots](docs/screenshots/)). Per-test evidence with real output is in [tests/test-plan.md](tests/test-plan.md).
+
+Highlights:
+- **Online LVM extension:** `/srv/app` grew from 3.0 to 5.0 GB with `lvextend -r` while a request loop from mon01 got 60/60 `200` responses.
+- **SELinux stays enforcing:** the nginx → app 502 was fixed with the narrowest boolean (`httpd_can_network_relay`), not `setenforce 0` ([INC-001](docs/incidents/INC-001-nginx-502-selinux.md)).
+- **Backups are proven:** a nightly tar archive (ACLs, xattrs, SELinux labels) plus sha256 is sent to mon01. The restore test matches both file content and SELinux label, and Zabbix alerts if the last backup is older than 25 h.
+- **Least privilege:** there's no root or password SSH (key only, `AllowGroups`). `akdev` may only restart nginx and read its journal. Root is reachable only through the `ops` group.
+- **The firewall really splits zones:** SSH from the labnet side is refused (T16) while HTTP works (T17).
+
+## Lessons from the build
+
+Real problems hit along the way, each fixed and written into the guide:
+- **SELinux 502 on the reverse proxy** → [INC-001](docs/incidents/INC-001-nginx-502-selinux.md).
+- **Disk names changed** after a second disk was added (`sdb` became `sdc`). `/srv/app` still mounted, because fstab uses the UUID.
+- **zabbix-server wasn't enabled at boot.** It ran fine until the reboot test exposed it.
+- **The laptop's sleep paused the VMs**, leaving both clocks 9 h 15 min slow. chrony now uses `makestep 1 -1`.
+- **kdump failed on a 1.5 GB VM** (no crashkernel reservation), so it was disabled and the reservation removed.
+- **VirtualBox 7.2 quirks:** the wizard's unattended install created the wrong user and no LVM, a live snapshot hung (now always offline), and the host-only adapter disappeared and had to be recreated.
 
 ## Incidents
 
 | ID | What broke | Write-up |
 |---|---|---|
-| INC-001 | nginx → app 502 under SELinux (natural, M2) | *to do* |
+| INC-001 | nginx → app 502 under SELinux (natural, M2) | [INC-001](docs/incidents/INC-001-nginx-502-selinux.md) |
 
 Catalog of all planned incidents: [docs/incidents/README.md](docs/incidents/README.md).
 

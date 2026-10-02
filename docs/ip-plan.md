@@ -45,10 +45,12 @@ Check the interface names with `ip -br link` after the install. VirtualBox norma
 
 | Device | PV | VG | LV | FS | Mount | Notes |
 |---|---|---|---|---|---|---|
-| `sdb` 5 GB | yes | `vg_data` | `lv_app` 3 GB | XFS | `/srv/app` (fstab by UUID) | M2 |
-| `sdc` 2 GB | yes | `vg_data` | `lv_app` +2 GB | | | M2 online extend with `lvextend -r` |
+| 5 GB disk (`web01-data1.vdi`) | yes | `vg_data` | `lv_app` 3 GB | XFS | `/srv/app` (fstab by UUID) | M2 |
+| 2 GB disk (`web01-data2.vdi`) | yes | `vg_data` | `lv_app` +2 GB → **5 GB** | | | M2 online extend with `lvextend -r` |
 
-On mon01, if the Ubuntu installer left free space in `ubuntu-vg`, `lv_backups` (ext4) is mounted on `/srv/backups` (M3).
+Kernel names: after the 2 GB disk was attached, the kernel called it **`sdb`** and renamed the 5 GB disk **`sdc`**. Never refer to these disks by `sdX`; fstab uses the filesystem UUID. `vg_data` is 6.99 GB with 1.99 GB free.
+
+mon01 was installed **without LVM**: one ext4 root partition (`sda2`, 25 GB). `/srv/backups` is a plain directory on it.
 
 ## Ports and flows
 

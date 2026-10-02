@@ -7,7 +7,9 @@
 # T10 (alerting) is manual: see the test plan.
 set -uo pipefail
 
-WEB=${WEB:-192.168.56.11}
+# Use the name, not the IP: mon01's known_hosts entry for web01 was created under this name
+# (ssh-copy-id akadmin@web01), and BatchMode refuses a host key it hasn't seen for that name.
+WEB=${WEB:-web01}
 here=$(cd "$(dirname "$0")" && pwd)
 results=$(mktemp)
 trap 'rm -f "$results"' EXIT
