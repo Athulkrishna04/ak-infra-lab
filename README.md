@@ -87,6 +87,7 @@ Real problems hit along the way, each fixed and written into the guide:
 | ID | What broke | Write-up |
 |---|---|---|
 | INC-001 | nginx → app 502 under SELinux (natural, M2) | [INC-001](docs/incidents/INC-001-nginx-502-selinux.md) |
+| INC-002 | /srv/app at 95%: a hidden 4.6 GB temp file; proven safe to delete (`lsof`, content, auditd) instead of growing the LV (blind, E2) | [INC-002](docs/incidents/INC-002-disk-full-hidden-tempfile.md) |
 | INC-004 | Site down: nginx won't start after a config edit; one missing `;`, found with `nginx -t`, `diff` against the repo and auditd (blind, E2) | [INC-004](docs/incidents/INC-004-nginx-config-missing-semicolon.md) |
 
 Catalog of all planned incidents: [docs/incidents/README.md](docs/incidents/README.md).

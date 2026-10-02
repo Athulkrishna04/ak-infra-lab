@@ -33,4 +33,5 @@ Don't read the "Expected path" column before you've done the fault. It's here so
 | ID | Title | Date | Time to resolve | Blind? |
 |---|---|---|---|---|
 | [INC-001](INC-001-nginx-502-selinux.md) | nginx returns 502 for /app/ under SELinux | 2026-10-01 | ~10 min | natural |
+| [INC-002](INC-002-disk-full-hidden-tempfile.md) | /srv/app at 95%: hidden 4.6 GB temp file (`fallocate`) | 2026-10-02 | ~3 min | yes (ak-chaos random) |
 | [INC-004](INC-004-nginx-config-missing-semicolon.md) | Website down: nginx won't start after a config edit (missing `;`) | 2026-10-02 | ~6 min | yes (ak-chaos random) |
