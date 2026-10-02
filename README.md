@@ -88,6 +88,7 @@ Real problems hit along the way, each fixed and written into the guide:
 |---|---|---|
 | INC-001 | nginx → app 502 under SELinux (natural, M2) | [INC-001](docs/incidents/INC-001-nginx-502-selinux.md) |
 | INC-002 | /srv/app at 95%: a hidden 4.6 GB temp file; proven safe to delete (`lsof`, content, auditd) instead of growing the LV (blind, E2) | [INC-002](docs/incidents/INC-002-disk-full-hidden-tempfile.md) |
+| INC-003 | /srv/app at 94% while `du` found 4K: a deleted 4.5 GB file still open (`lsof +L1` → PID → transient unit → stop) (blind, E2) | [INC-003](docs/incidents/INC-003-deleted-open-file.md) |
 | INC-004 | Site down: nginx won't start after a config edit; one missing `;`, found with `nginx -t`, `diff` against the repo and auditd (blind, E2) | [INC-004](docs/incidents/INC-004-nginx-config-missing-semicolon.md) |
 | INC-005 | `/` returns 403 while `/app/` works: index.html carried the `/tmp` label `user_tmp_t`; the AVC plus `matchpathcon`/`restorecon`, SELinux kept enforcing (blind, E2) | [INC-005](docs/incidents/INC-005-selinux-wrong-label-403.md) |
 | INC-006 | Site unreachable from the mgmt network: `http` removed from the firewalld `mgmt` zone (runtime + permanent); **Zabbix stayed green**, because its check runs on the box (blind, E2). Follow-up: an external web scenario from mon01 now catches it in 4 s | [INC-006](docs/incidents/INC-006-firewalld-mgmt-http-removed.md) |

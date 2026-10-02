@@ -34,6 +34,7 @@ Don't read the "Expected path" column before you've done the fault. It's here so
 |---|---|---|---|---|
 | [INC-001](INC-001-nginx-502-selinux.md) | nginx returns 502 for /app/ under SELinux | 2026-10-01 | ~10 min | natural |
 | [INC-002](INC-002-disk-full-hidden-tempfile.md) | /srv/app at 95%: hidden 4.6 GB temp file (`fallocate`) | 2026-10-02 | ~3 min | yes (ak-chaos random) |
+| [INC-003](INC-003-deleted-open-file.md) | /srv/app at 94% but `du` finds 4K: deleted file held open by a transient unit | 2026-10-02 | ~5 min | yes (ak-chaos random; last in pool) |
 | [INC-004](INC-004-nginx-config-missing-semicolon.md) | Website down: nginx won't start after a config edit (missing `;`) | 2026-10-02 | ~6 min | yes (ak-chaos random) |
 | [INC-005](INC-005-selinux-wrong-label-403.md) | `/` returns 403: index.html labelled `user_tmp_t` (moved from /tmp) | 2026-10-02 | ~4 min | yes (ak-chaos random) |
 | [INC-006](INC-006-firewalld-mgmt-http-removed.md) | Site unreachable from mgmt: firewalld `mgmt` zone lost `http` (no Zabbix alert) | 2026-10-02 | ~5 min | yes (ak-chaos random) |
