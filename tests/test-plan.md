@@ -93,7 +93,7 @@ snmpd (unneeded, localhost UDP 161) disabled on mon01 after the ss -tuln review;
 Three test-script bugs were found and fixed on the way to 23/0/0:
 1. **Hidden sudo prompt.** `ssh -t … | tr -d '\r' | tee` buffered web01's `[sudo] password` prompt (it has no newline) until the connection closed, so the prompt never appeared and sudo timed out after 5 minutes. Stripping `\r` also staircased the output. Fix: pipe straight into `tee`.
 2. **False T13 FAIL from `pipefail`.** `ausearch … | grep -q akprobe13`: grep exits on the first match, ausearch dies of SIGPIPE mid-write, and `pipefail` reports the pipeline as failed. The audit records were there all along (above). Fix: capture the output first, then grep it.
-3. **Leftover mail spool.** `useradd -M` still created `/var/spool/mail/akprobe13`, and plain `userdel` leaves it. Fix: `-K CREATE_MAIL_SPOOL=no` plus cleanup.
+3. **Leftover mail spool.** `useradd -M` still created `/var/spool/mail/akprobe13`, and plain `userdel` leaves it. A first fix with `-K CREATE_MAIL_SPOOL=no` broke T13 again (Rocky 10: `configuration error - unknown item 'CREATE_MAIL_SPOOL'`, so the probe user was never created). Final fix: plain `useradd`, then `rm -f /var/spool/mail/akprobe13`.
 
 ### v1.0 run of `verify.sh` (2026-10-02, on mon01)
 

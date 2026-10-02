@@ -67,8 +67,9 @@ fi
 # Capture first, then grep: with pipefail, `ausearch | grep -q` fails when grep exits on the
 # first match and ausearch dies of SIGPIPE mid-write (the false FAIL seen on 2026-10-02).
 if grep -q -- '-k identity\|key=identity' <<<"$(auditctl -l 2>/dev/null)"; then
-  useradd -M -K CREATE_MAIL_SPOOL=no -s /sbin/nologin akprobe13 && userdel akprobe13
-  rm -f /var/spool/mail/akprobe13   # left behind by earlier runs without CREATE_MAIL_SPOOL=no
+  # (Rocky 10's useradd rejects -K CREATE_MAIL_SPOOL=no: "unknown item", so clean up instead.)
+  useradd -M -s /sbin/nologin akprobe13 && userdel akprobe13
+  rm -f /var/spool/mail/akprobe13   # useradd creates a mail spool and plain userdel leaves it
   sleep 1
   if grep -q akprobe13 <<<"$(ausearch -k identity -ts recent -i 2>/dev/null)"; then
     pass "T13 web01 useradd/userdel recorded under key identity"
