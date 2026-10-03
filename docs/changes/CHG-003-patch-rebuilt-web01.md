@@ -5,7 +5,7 @@
 | Node(s) | web01 (Rocky Linux 10.2, rebuilt from the M0 `clean-install` image in E3.4) |
 | Type | normal (catch-up after a rebuild; far larger than a monthly run) |
 | Window | 2026-10-03, about 13:00–13:30 IST |
-| Risk | **medium**: 183 package updates including kernel, glibc, systemd, sudo and openssh; a reboot is certain (new kernel) |
+| Risk | **medium**: 49 advisories (183 advisory-package entries) including kernel, glibc, systemd, sudo and openssh; a reboot is certain (new kernel) |
 | Snapshot taken | no new snapshot. Rollback is the **rebuild itself**: restore `clean-install` and run `ansible-playbook site.yml` (proven in E3.4), or `dnf history undo` |
 
 ## 1. Reason
@@ -18,7 +18,7 @@ The rebuild restored web01 from the M0 image, so it runs the package versions of
 | Important | 33 |
 | Moderate | 13 |
 | Low | 1 |
-| **Total** | **49** (183 package updates), plus 1 bugfix notice |
+| **Total** | **49** (183 advisory-package entries in `dnf updateinfo list --security`), plus 1 bugfix notice |
 
 Key packages: `kernel` → 6.12.0-211.61.1.el10_2, `glibc` → 2.39-128.el10_2, `openssh` → 9.9p1-28.el10_2.rocky.0.1, `sudo` → 1.9.17-10.p2.el10_2.6, `systemd` → 257-23.el10_2.2.rocky.0.1.
 
@@ -85,7 +85,7 @@ services using old libraries: NetworkManager ak-app chronyd dbus-broker firewall
 - [x] **0 security advisories pending** (`dnf updateinfo list --security` → 0 lines, down from 49).
 - [x] Versions: `openssh-server-9.9p1-28.el10_2.rocky.0.1`, `sudo-1.9.17-10.p2.el10_2.6`. `glibc` (2.39-121) and `systemd` (257-23 …2.1) are at their latest **security** level; newer bugfix builds stay for a regular `dnf upgrade` change.
 - [x] `tests/verify.sh` (~13:22): **23 PASS / 0 FAIL / 0 SKIP**.
-- [x] `ansible/run.sh site.yml` after patching: **mon01 changed=0, web01 changed=0**. The configuration survived 183 package updates and a kernel change.
+- [x] `ansible/run.sh site.yml` after patching: **mon01 changed=0, web01 changed=0**. The configuration survived the 49-advisory update and a kernel change.
 
 ## 7. Result
 
