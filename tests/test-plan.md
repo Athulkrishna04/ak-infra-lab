@@ -58,6 +58,17 @@ Reboot web01 (`sudo systemctl reboot`), wait about a minute, then run `verify.sh
 
 ## Evidence
 
+### E3 run on the Ansible-rebuilt web01 (2026-10-03, on mon01)
+
+```text
+== SUMMARY: 23 PASS, 0 FAIL, 0 SKIP ==
+web01 rebuilt from the M0 clean-install snapshot by ansible-playbook site.yml (two new empty data disks)
+T11/T12b: first backup taken by the playbook, web01_2026-10-03_1244.tar.gz
+second playbook run: mon01 changed=0, web01 changed=0
+```
+
+Details and the 6 role bugs the rebuild found: [docs/e3-ansible-rebuild.md](../docs/e3-ansible-rebuild.md).
+
 ### E1 run of `verify.sh` (2026-10-02 19:26, on mon01)
 
 ```text

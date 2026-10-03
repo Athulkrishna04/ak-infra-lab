@@ -1,8 +1,8 @@
 # ak-infra-lab: a hardened, monitored, backed-up Linux mini fleet
 
-> *Built and operated a 2-node Linux lab (Rocky Linux 10, Ubuntu 24.04) in VirtualBox: role-based users and sudo, LVM storage with online extension, systemd services with cgroup limits, SSH/firewalld/SELinux hardening, and systemd-timer backups with verified restores; monitored it with Zabbix 7.0 (custom Bash/Python checks, alert triggers), auditd and centralized rsyslog; resolved 8 injected incidents with written root-cause analyses and runbooks, and ran patching through change records with rollback plans.*
+> *Built and operated a 2-node Linux lab (Rocky Linux 10, Ubuntu 24.04) in VirtualBox: role-based users and sudo, LVM storage with online extension, systemd services with cgroup limits, SSH/firewalld/SELinux hardening, and systemd-timer backups with verified restores; monitored it with Zabbix 7.0 (custom Bash/Python checks, alert triggers), auditd and centralized rsyslog; resolved 8 injected incidents with written root-cause analyses and runbooks, and ran patching through change records with rollback plans; automated the rebuild with Ansible (idempotent roles, verified by a test suite).*
 
-**Status:** 🟢 **v1.1 complete** (2026-10-02): v1.0 build + E1 hardening/central logging + E2 patching and break/fix. The automated test suite shows **23 PASS, 0 FAIL, 0 SKIP**; 2 patch changes ([CHG-001](docs/changes/CHG-001-security-patching-web01.md), [CHG-002](docs/changes/CHG-002-patching-mon01.md)) and **10 incident write-ups** (8 injected, 6 of them blind, plus 2 that happened naturally). Next: Ansible rebuild ([roadmap](#roadmap)).
+**Status:** 🟢 **v2.0 complete** (2026-10-03): v1.0 build + E1 hardening/central logging + E2 patching and break/fix + **E3 Ansible rebuild**. web01 was restored to a fresh M0 install and rebuilt by `ansible-playbook site.yml`; on the rebuilt node `verify.sh` shows **23 PASS, 0 FAIL, 0 SKIP** and a second run reports **`changed=0`** ([E3 evidence](docs/e3-ansible-rebuild.md)). Also: 2 patch changes ([CHG-001](docs/changes/CHG-001-security-patching-web01.md), [CHG-002](docs/changes/CHG-002-patching-mon01.md)) and **10 incident write-ups** (8 injected, 6 of them blind, plus 2 natural).
 
 | Component | Version |
 |---|---|
@@ -84,6 +84,8 @@ Real problems hit along the way, each fixed and written into the guide:
 - **Monitoring blind spot found and closed:** in INC-006 every admin lost the site while Zabbix stayed green (its check runs on the box). An external web scenario from mon01 now catches it within 4 s, proven by re-injecting the fault.
 - **Version-specific knowledge:** on Rocky 10 the classic `rd.break` root-password reset stops at a root-password prompt; `init=/bin/bash` works ([INC-009](docs/incidents/INC-009-root-password-reset.md)). OpenSSH 9.9's `PerSourcePenalties` plus our own `LoginGraceTime 30` locked the admin out ([INC-010](docs/incidents/INC-010-sshd-persourcepenalties-admin-lockout.md)).
 - **Host stalls show up in the guests:** after the laptop was busy or asleep, web01 logged `clocksource: Long readout interval` and `systemd-journald` was killed by its watchdog once (restarted automatically). That's the same root cause as the clock drift.
+- **The Ansible rebuild found 6 role bugs** that the live fleet hid: a package-order dependency, handlers dropped after a failed task (`force_handlers`), a check that was only idempotent after a reboot, duplicate `/etc/hosts` lines, and more. Each was fixed in the role, never by hand ([details](docs/e3-ansible-rebuild.md#role-bugs-the-gate-found-all-fixed-in-the-roles-never-by-hand-on-the-vm)).
+- **A base image is only as good as its documented credentials:** the M0 snapshot's password wasn't recorded and had to be reset from the console.
 - **VirtualBox 7.2 quirks:** the wizard's unattended install created the wrong user and no LVM, a live snapshot hung (now always offline), and the host-only adapter disappeared and had to be recreated.
 
 ## Incidents
@@ -113,7 +115,7 @@ systemd/         ak-app.service, ak-backup.service/.timer, ak-health.service/.ti
 zabbix/          agent UserParameters + template spec (and the real template export)
 tests/           test plan T01–T20, verify.sh + per-node checks
 tools/           preflight.ps1 (host check), sync-to-lab.ps1, ak-chaos.sh (blind fault injector)
-ansible/         E3: inventory, site.yml, roles
+ansible/         E3: site.yml + 6 roles, run.sh / make-vault.sh (sudo passwords in an ansible-vault file outside the repo)
 ```
 
 ## Rebuild it
@@ -121,13 +123,13 @@ ansible/         E3: inventory, site.yml, roles
 Follow [docs/build-guide.md](docs/build-guide.md) from M0. In short:
 1. Windows: run `tools/preflight.ps1`, install VirtualBox 7.2 with its machine folder on D:, and create the `labnet` NAT network and the host-only network.
 2. Install mon01 (Ubuntu 24.04) and web01 (Rocky 10 Minimal) with the IPs above.
-3. `tools/sync-to-lab.ps1` copies this repo to both VMs. Install the configs as the guide describes (or run `ansible-playbook ansible/site.yml` once E3 is done).
+3. `tools/sync-to-lab.ps1` copies this repo to both VMs. Put mon01's public key on web01, install Ansible on mon01, create the vault with `ansible/make-vault.sh`, then run `ansible/run.sh site.yml` (twice: the second run must show `changed=0`). Gaps that stay manual: [E3 known gaps](docs/e3-ansible-rebuild.md#known-gaps-not-automated).
 4. On mon01: `bash tests/verify.sh` must show 0 FAIL.
 
 ## Roadmap
 
 - ~~**E1:** auditd, sysctl hardening, central rsyslog, password aging, locked-down backup key~~ ✅ done 2026-10-02
 - ~~**E2:** patching with change records, 8 injected incidents with RCAs~~ ✅ done 2026-10-02 (tag `v1.1`)
-- **E3:** Ansible rebuild (second run `changed=0`)
+- ~~**E3:** Ansible rebuild (second run `changed=0`)~~ ✅ done 2026-10-03 (tag `v2.0`)
 - **E4:** cgroup/namespace demos, performance baselines, NFS + autofs
 - **E5:** Zabbix 7.0 → 8.0 upgrade once 8.0 is GA
