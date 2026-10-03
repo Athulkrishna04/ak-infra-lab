@@ -125,8 +125,16 @@
     name: kdump
     state: stopped
     enabled: false
+  register: common_kdump
   when: inventory_hostname in groups['rocky']
   failed_when: false        # a minimal install without kexec-tools has no kdump unit; that's fine too
+
+# On a fresh install kdump has already FAILED at boot; disabling it doesn't clear that state,
+# and healthcheck.sh would keep reporting the failed unit (T15 WARN).
+- name: Forget kdump's failed state after disabling it
+  ansible.builtin.command: systemctl reset-failed kdump.service
+  when: common_kdump is changed
+  failed_when: false
 
 - name: Read the kernel command line
   ansible.builtin.slurp:
