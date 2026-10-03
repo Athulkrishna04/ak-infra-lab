@@ -91,11 +91,12 @@ Every listening socket must be explained. Anything that isn't gets disabled.
 
 ## Snapshots (at most 3 per VM, always taken with the VM powered off)
 
-| Name | Taken | Purpose |
-|---|---|---|
-| `clean-install` | end of M0 | Fresh OS, static IPs, nothing else |
-| `baseline-M3` | end of M3 | Monitoring + backups working (v1.0 state) |
-| `baseline-E1` | 2026-10-02 19:35, end of E1 | Hardened + central logging, `verify.sh` 23/0/0 |
-| `pre-patch-latest` | before every patch run or risky change (E2+) | Rollback point; replaces the oldest baseline |
+| VM | Name | Taken | Purpose |
+|---|---|---|---|
+| both | `clean-install` | end of M0 | Fresh OS, static IPs, Windows key; the base image the E3 rebuild starts from |
+| both | `baseline-E1` | 2026-10-02 19:35 | Hardened + central logging, `verify.sh` 23/0/0 (v1.1 code base before E2) |
+| mon01 | `baseline-M3` | end of M3 | Monitoring + backups working (v1.0 state) |
+| web01 | `baseline-E3` | 2026-10-03 | Rebuilt by Ansible from `clean-install`, patched in CHG-003, `verify.sh` 23/0/0, playbook `changed=0` |
 
-`baseline-M1` and `baseline-M2` were rotated out as newer baselines were taken.
+Rotated out along the way: `baseline-M1`, `baseline-M2`, `pre-boot-drills` (E2 drills), `pre-ansible` (the v1.1 web01 before the E3 rebuild).
+web01's original data disks (`web01-data1.vdi`, `web01-data2.vdi`) live on only in `baseline-E1`; the rebuilt web01 uses `web01-data1-e3.vdi` / `web01-data2-e3.vdi`.
