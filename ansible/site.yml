@@ -10,9 +10,15 @@
     - hardening
     - logging
 
+- name: NFS server (E4)
+  hosts: ubuntu
+  roles:
+    - nfs_server
+
 - name: Web node
   hosts: rocky
   roles:
     - web
     - zabbix_agent
     - backup
+    - nfs_client

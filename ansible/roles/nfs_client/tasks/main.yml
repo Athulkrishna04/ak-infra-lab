@@ -1,0 +1,30 @@
+---
+# roles/nfs_client - E4 on web01: automount mon01's export at /nfs/share on first access.
+- name: NFS client and autofs
+  ansible.builtin.dnf:
+    name: [nfs-utils, autofs]
+    state: present
+
+- name: autofs master entry for /nfs
+  ansible.builtin.copy:
+    src: "{{ repo_root }}/configs/web01/autofs/ak.autofs"
+    dest: /etc/auto.master.d/ak.autofs
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload autofs
+
+- name: autofs map (share -> mon01:/srv/share)
+  ansible.builtin.copy:
+    src: "{{ repo_root }}/configs/web01/autofs/auto.ak"
+    dest: /etc/auto.ak
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload autofs
+
+- name: autofs is running and enabled
+  ansible.builtin.service:
+    name: autofs
+    state: started
+    enabled: true

@@ -80,6 +80,17 @@ else
   skip "T13 web01 audit rules not loaded yet (E1)"
 fi
 
+# T21 (E4) NFS share from mon01, automounted on first access
+if [[ -f /etc/auto.ak ]]; then
+  if timeout 15 grep -q ak-share /nfs/share/README.txt 2>/dev/null; then
+    pass "T21 web01 /nfs/share automounted from mon01 ($(findmnt -n -o SOURCE,FSTYPE /nfs/share | tr -s ' '))"
+  else
+    fail "T21 web01 /nfs/share not readable (autofs/NFS)"
+  fi
+else
+  skip "T21 web01 NFS client not configured yet (E4)"
+fi
+
 # T15 health check
 hc=$(/usr/local/bin/healthcheck.sh 2>&1); rc=$?
 [[ $rc -eq 0 ]] && pass "T15 web01 healthcheck: $hc" || fail "T15 web01 healthcheck exit $rc: $(echo "$hc" | xargs)"

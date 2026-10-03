@@ -1,0 +1,53 @@
+---
+# roles/nfs_server - E4 on mon01: export /srv/share to web01 only (NFSv4, 2049/tcp).
+- name: NFS server package
+  ansible.builtin.apt:
+    name: nfs-kernel-server
+    state: present
+
+- name: Shared directory
+  ansible.builtin.file:
+    path: /srv/share
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Marker file (T21 reads it through the automount on web01)
+  ansible.builtin.copy:
+    dest: /srv/share/README.txt
+    content: "ak-share: exported by mon01 over NFSv4 (E4)\n"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Drop-in directory for exports (not every nfs-kernel-server version creates it)
+  ansible.builtin.file:
+    path: /etc/exports.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Export definition (web01 only, root_squash)
+  ansible.builtin.copy:
+    src: "{{ repo_root }}/configs/mon01/exports.d/ak.exports"
+    dest: /etc/exports.d/ak.exports
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Re-export
+
+- name: NFS server is running and enabled
+  ansible.builtin.service:
+    name: nfs-server
+    state: started
+    enabled: true
+
+- name: ufw lets ONLY web01 reach NFS
+  community.general.ufw:
+    rule: allow
+    from_ip: 192.168.56.11
+    to_port: "2049"
+    proto: tcp
+    comment: "NFSv4 from web01 (E4)"

@@ -1,0 +1,4 @@
+# /etc/auto.master.d/ak.autofs   (E4, web01 = NFS client)
+# /net is already used by the built-in "-hosts" map in /etc/auto.master, so our share lives
+# under /nfs. Mounted on first access, unmounted after 60 s idle.
+/nfs  /etc/auto.ak  --timeout=60

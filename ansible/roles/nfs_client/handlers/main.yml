@@ -1,0 +1,5 @@
+---
+- name: Reload autofs
+  ansible.builtin.service:
+    name: autofs
+    state: reloaded
