@@ -136,14 +136,17 @@
   when: common_kdump is changed
   failed_when: false
 
-- name: Read the kernel command line
-  ansible.builtin.slurp:
-    src: /proc/cmdline
-  register: common_cmdline
+# Check the BOOT CONFIG, not /proc/cmdline: the running kernel keeps its old command line until
+# a reboot, so testing /proc/cmdline re-ran grubby on every run (changed=1 on the E3.4 re-run).
+- name: Does any boot entry still reserve crashkernel? (read-only)
+  ansible.builtin.shell: grubby --info=ALL | grep -c crashkernel || true
+  register: common_crashkernel
+  changed_when: false
+  check_mode: false
   when: inventory_hostname in groups['rocky']
 
 - name: No crashkernel reservation on web nodes (takes effect at the next boot)
   ansible.builtin.command: grubby --update-kernel=ALL --remove-args=crashkernel
   when:
     - inventory_hostname in groups['rocky']
-    - "'crashkernel' in (common_cmdline.content | b64decode)"
+    - common_crashkernel.stdout | int > 0

@@ -1,0 +1,28 @@
+---
+# reload-services.yml - one-time recovery for handlers that a failed run dropped (E3.4).
+#   ./run.sh reload-services.yml
+# Runs exactly what the hardening/logging handlers would have run. With force_handlers = True
+# in ansible.cfg this shouldn't be needed again; kept as the documented recovery step.
+- name: Load configs whose handlers never ran
+  hosts: rocky
+  tasks:
+    - name: sshd config test
+      ansible.builtin.command: /usr/sbin/sshd -t
+      changed_when: false
+
+    - name: Reload sshd (hardening drop-ins take effect)
+      ansible.builtin.service:
+        name: sshd
+        state: reloaded
+
+    - name: Load audit rules
+      ansible.builtin.command: augenrules --load
+
+    - name: rsyslog config test
+      ansible.builtin.command: rsyslogd -N1
+      changed_when: false
+
+    - name: Restart rsyslog (forwarding to mon01 starts)
+      ansible.builtin.service:
+        name: rsyslog
+        state: restarted
