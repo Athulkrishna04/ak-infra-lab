@@ -13,7 +13,7 @@
     state: present
   vars:
     common_pkgs:
-      RedHat: [chrony, sysstat, rsync, tar, lsof, dnf-plugins-core, acl]
+      RedHat: [chrony, sysstat, rsync, tar, lsof, dnf-plugins-core, acl, policycoreutils-python-utils, python3-libselinux]   # SELinux libs: seport/sefcontext/seboolean need them before any role uses them
       Debian: [chrony, rsync]
 
 - name: chrony steps the clock whenever it's off (VMs pause while the laptop sleeps; M3 fix)

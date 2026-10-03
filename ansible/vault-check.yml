@@ -1,0 +1,32 @@
+---
+# vault-check.yml - is the vault's become password right for each host? Never prints a password.
+#   ./run.sh vault-check.yml
+- name: What the vault holds (lengths only)
+  hosts: localhost
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Shape of the entries
+      ansible.builtin.debug:
+        msg: >-
+          web01: {{ ak_become.web01 | length }} chars, stray spaces={{ ak_become.web01 != ak_become.web01 | trim }} |
+          mon01: {{ ak_become.mon01 | length }} chars, stray spaces={{ ak_become.mon01 != ak_become.mon01 | trim }} |
+          identical={{ ak_become.web01 == ak_become.mon01 }}
+
+- name: Does sudo accept the vault value? (plain sudo, outside Ansible's become)
+  hosts: lab
+  gather_facts: false
+  become: false
+  tasks:
+    - name: sudo -S -k -v with the vault value on stdin
+      ansible.builtin.command: sudo -S -k -v -p ''
+      args:
+        stdin: "{{ ak_become[inventory_hostname] }}"
+      register: vault_sudo
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Result
+      ansible.builtin.debug:
+        msg: "sudo with the vault value: {{ 'ACCEPTED' if vault_sudo.rc == 0 else 'REJECTED (' ~ (vault_sudo.stderr | default('') | trim) ~ ')' }}"
