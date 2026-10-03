@@ -14,7 +14,7 @@
   vars:
     common_pkgs:
       RedHat: [chrony, sysstat, rsync, tar, lsof, dnf-plugins-core, acl]
-      Debian: [chrony, rsync, acl]
+      Debian: [chrony, rsync]
 
 - name: chrony steps the clock whenever it's off (VMs pause while the laptop sleeps; M3 fix)
   ansible.builtin.lineinfile:
@@ -43,13 +43,16 @@
     groups: ops
     append: true
 
-- name: akadmin accepts the Windows admin key and mon01's key (public keys, committed in configs/keys)
+- name: akadmin accepts the Windows admin key (public key, committed in configs/keys)
   ansible.posix.authorized_key:
     user: akadmin
-    key: "{{ lookup('ansible.builtin.file', repo_root ~ '/configs/keys/' ~ item) }}"
-  loop:
-    - akadmin-windows.pub
-    - akadmin-mon01.pub
+    key: "{{ lookup('ansible.builtin.file', repo_root ~ '/configs/keys/akadmin-windows.pub') }}"
+
+- name: akadmin on web nodes accepts mon01's key (how mon01 and Ansible reach web01)
+  ansible.posix.authorized_key:
+    user: akadmin
+    key: "{{ lookup('ansible.builtin.file', repo_root ~ '/configs/keys/akadmin-mon01.pub') }}"
+  when: inventory_hostname in groups['rocky']
 
 - name: akdev exists on web nodes
   ansible.builtin.user:
@@ -65,13 +68,16 @@
     key: "{{ lookup('ansible.builtin.file', repo_root ~ '/configs/keys/akdev-windows.pub') }}"
   when: inventory_hostname in groups['rocky']
 
+# Match by IP, so a line written by hand with different spacing is corrected, not duplicated
+# (the first dry run showed a plain `line:` would have added a second entry per host).
 - name: Lab names resolve on every node
   ansible.builtin.lineinfile:
     path: /etc/hosts
-    line: "{{ item }}"
+    regexp: '^{{ item.ip | regex_escape }}\s'
+    line: "{{ item.ip }} {{ item.name }}.lab.local {{ item.name }}"
   loop:
-    - "192.168.56.10   mon01.lab.local   mon01"
-    - "192.168.56.11   web01.lab.local   web01"
+    - { ip: 192.168.56.10, name: mon01 }
+    - { ip: 192.168.56.11, name: web01 }
 
 - name: sudoers drop-in (checked by visudo before it replaces anything)
   ansible.builtin.copy:
