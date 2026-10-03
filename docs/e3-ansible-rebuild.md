@@ -46,6 +46,6 @@ Passwords: akadmin's sudo password differs per VM, so `host_vars/<host>.yml` poi
 ## Known gaps (not automated)
 
 - **mon01's Zabbix server, frontend and MariaDB** (installed with `tools/zabbix-db-setup.sh` in M3), the Zabbix host/template/web-scenario configuration, and mon01's netplan are not in Ansible. The E3 gate covers rebuilding **web01**.
-- **Patching is not part of the playbook.** The rebuilt web01 runs the `clean-install` package versions (e.g. openssh `9.9p1-23`, kernel `6.12.0-211.16.1`). A CHG run with `tools/patch-web01.sh` brings it current. Mixing "apply updates" into a converge would break `changed=0`.
+- **Patching is not part of the playbook**, by design: mixing "apply updates" into a converge would break `changed=0`. The rebuilt web01 came up with the `clean-install` package versions (49 security notices pending, 2 Critical) and was patched in [CHG-003](changes/CHG-003-patch-rebuilt-web01.md): 0 advisories left, `verify.sh` 23/0/0, and the playbook still `changed=0` afterwards.
 - **The previous web01's backup key** is still authorized on mon01, next to the new one (the role adds keys, it doesn't remove old ones). It's locked to `rrsync -wo /srv/backups/web01` either way; remove the stale line by hand or with `exclusive: true` once only Ansible manages that file.
 - **Users' passwords** aren't managed. The vault holds them only for `become`.
