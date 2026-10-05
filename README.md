@@ -2,7 +2,7 @@
 
 > *Built and operated a 2-node Linux lab (Rocky Linux 10, Ubuntu 24.04) in VirtualBox: role-based users and sudo, LVM storage with online extension, systemd services with cgroup limits, SSH/firewalld/SELinux hardening, and systemd-timer backups with verified restores; monitored it with Zabbix 7.0 (custom Bash/Python checks, alert triggers), auditd and centralized rsyslog; resolved 8 injected incidents with written root-cause analyses and runbooks, and ran patching through change records with rollback plans; automated the rebuild with Ansible (idempotent roles, verified by a test suite).*
 
-**Status:** 🟢 **v2.0 complete** (2026-10-03): v1.0 build + E1 hardening/central logging + E2 patching and break/fix + **E3 Ansible rebuild**. web01 was restored to a fresh M0 install and rebuilt by `ansible-playbook site.yml`; on the rebuilt node `verify.sh` shows **23 PASS, 0 FAIL, 0 SKIP** and a second run reports **`changed=0`** ([E3 evidence](docs/e3-ansible-rebuild.md)). Also: 3 patch changes ([CHG-001](docs/changes/CHG-001-security-patching-web01.md), [CHG-002](docs/changes/CHG-002-patching-mon01.md), [CHG-003](docs/changes/CHG-003-patch-rebuilt-web01.md): 49 advisories on the rebuilt node) and **10 incident write-ups** (8 injected, 6 of them blind, plus 2 natural).
+**Status:** 🟢 **v2.1 complete** (2026-10-05): v1.0 build + E1 hardening/central logging + E2 patching and break/fix + **E3 Ansible rebuild** (web01 rebuilt from a fresh install, second run `changed=0`, [evidence](docs/e3-ansible-rebuild.md)) + **E4** cgroup/namespace demos, a performance baseline and NFS + autofs as Ansible roles ([evidence](docs/e4-cgroups-namespaces-nfs.md)). `verify.sh`: **24 PASS, 0 FAIL, 0 SKIP**. 3 change records ([CHG-001](docs/changes/CHG-001-security-patching-web01.md), [CHG-002](docs/changes/CHG-002-patching-mon01.md), [CHG-003](docs/changes/CHG-003-patch-rebuilt-web01.md)) and **10 incident write-ups** (8 injected, 6 of them blind, plus 2 natural).
 
 | Component | Version |
 |---|---|
@@ -58,9 +58,11 @@ Details: [docs/architecture.md](docs/architecture.md) · IPs, users and ports: [
 
 ## Verification
 
-`tests/verify.sh` (run on mon01, 2026-10-02): **23 PASS, 0 FAIL, 0 SKIP**, covering T01–T20 (v1.0 + E1). T10 (alerting) is manual and passed: "nginx is down on web01" was raised and resolved within 1 minute ([screenshots](docs/screenshots/)). Per-test evidence with real output is in [tests/test-plan.md](tests/test-plan.md).
+`tests/verify.sh` (run on mon01, 2026-10-05): **24 PASS, 0 FAIL, 0 SKIP**, covering T01–T21 (v1.0 + E1 + E4's NFS automount). T10 (alerting) is manual and passed: "nginx is down on web01" was raised and resolved within 1 minute ([screenshots](docs/screenshots/)). Per-test evidence with real output is in [tests/test-plan.md](tests/test-plan.md).
 
 Highlights:
+- **cgroups proven, not assumed (E4):** a CPU hog measured 98% uncapped and 19% under `CPUQuota=20%` (111 throttle events); a 200 MiB allocation inside `MemoryMax=64M` was OOM-killed by the cgroup (`CONSTRAINT_MEMCG`) without touching the rest of the box.
+- **Rootless containers explained (E4):** in akdev's podman container, `root` inside is UID 1001 on the host, across 7 namespaces mapped through `/etc/subuid`.
 - **Online LVM extension:** `/srv/app` grew from 3.0 to 5.0 GB with `lvextend -r` while a request loop from mon01 got 60/60 `200` responses.
 - **SELinux stays enforcing:** the nginx → app 502 was fixed with the narrowest boolean (`httpd_can_network_relay`), not `setenforce 0` ([INC-001](docs/incidents/INC-001-nginx-502-selinux.md)).
 - **Backups are proven:** a nightly tar archive (ACLs, xattrs, SELinux labels) plus sha256 is sent to mon01. The restore test matches both file content and SELinux label, and Zabbix alerts if the last backup is older than 25 h.
@@ -113,7 +115,7 @@ configs/         config files per node (common / web01 / mon01 / windows)
 scripts/         healthcheck.sh, ak-backup.sh, ak-backup-age.sh, procstat.py
 systemd/         ak-app.service, ak-backup.service/.timer, ak-health.service/.timer
 zabbix/          agent UserParameters + template spec (and the real template export)
-tests/           test plan T01–T20, verify.sh + per-node checks
+tests/           test plan T01–T21, verify.sh + per-node checks
 tools/           preflight.ps1 (host check), sync-to-lab.ps1, ak-chaos.sh (blind fault injector)
 ansible/         E3: site.yml + 6 roles, run.sh / make-vault.sh (sudo passwords in an ansible-vault file outside the repo)
 ```
@@ -131,5 +133,5 @@ Follow [docs/build-guide.md](docs/build-guide.md) from M0. In short:
 - ~~**E1:** auditd, sysctl hardening, central rsyslog, password aging, locked-down backup key~~ ✅ done 2026-10-02
 - ~~**E2:** patching with change records, 8 injected incidents with RCAs~~ ✅ done 2026-10-02 (tag `v1.1`)
 - ~~**E3:** Ansible rebuild (second run `changed=0`)~~ ✅ done 2026-10-03 (tag `v2.0`)
-- **E4:** cgroup/namespace demos, performance baselines, NFS + autofs
+- ~~**E4:** cgroup/namespace demos, performance baselines, NFS + autofs~~ ✅ done 2026-10-05 (tag `v2.1`; disk baseline left as a gap, see the evidence page)
 - **E5:** Zabbix 7.0 → 8.0 upgrade once 8.0 is GA

@@ -29,6 +29,7 @@ Fill in **Result** and **Evidence** with what you actually observed. Evidence is
 | T18 | M1 | Time sync | `chronyc tracking` (both) | `Leap status : Normal` | PASS | verify.sh 2026-10-02 |
 | T19 | M1 | Devs can't stop nginx *(neg)* | `sudo -l -U akdev /usr/bin/systemctl stop nginx; echo $?` (web01) | exit status `1` | PASS | verify.sh 2026-10-02 |
 | T20 | E1 | Kernel hardening | `sysctl -n kernel.dmesg_restrict` (web01) | `1` | PASS | verify.sh 2026-10-02 (E1) |
+| T21 | E4 | NFS share automounted | read `/nfs/share/README.txt` (web01; autofs mounts mon01:/srv/share on access) | marker `ak-share` found, source `192.168.56.10:/srv/share nfs4` | PASS | verify.sh 2026-10-05 (E4) |
 
 `verify.sh` also prints **T09s** (the `zabbix-server` service is active on mon01).
 
@@ -57,6 +58,15 @@ Then do T10 by hand whenever the fix touched nginx, firewalld or Zabbix.
 Reboot web01 (`sudo systemctl reboot`), wait about a minute, then run `verify.sh`. Nothing may need a manual step to come back: `/srv/app` mounts, ak-app and nginx start, and the backup timer is scheduled.
 
 ## Evidence
+
+### E4 run (2026-10-05, on mon01)
+
+```text
+== SUMMARY: 24 PASS, 0 FAIL, 0 SKIP ==
+PASS T21 web01 /nfs/share automounted from mon01 (192.168.56.10:/srv/share nfs4)
+```
+
+An earlier E4 run failed T15 (`CRIT: failed units: dnf-makecache.service e4-hog.service`): the deliberate OOM demo left its unit failed. That was the health check working as designed; the demo now resets it. See [docs/e4-cgroups-namespaces-nfs.md](../docs/e4-cgroups-namespaces-nfs.md).
 
 ### E3 run on the Ansible-rebuilt web01 (2026-10-03, on mon01)
 
