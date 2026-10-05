@@ -43,6 +43,7 @@ systemd-run --wait --unit=e4-hog -p MemoryMax=64M -p MemorySwapMax=0 \
 echo "kernel log:"
 journalctl -k --since "-2min" --no-pager -o short-iso | grep -iE 'memory cgroup out of memory|oom-kill|Killed process' | tail -n 3
 journalctl -u e4-hog --since "-2min" --no-pager -o cat | grep -iE 'oom|result' | tail -n 3
+systemctl reset-failed e4-hog.service 2>/dev/null   # the deliberate OOM leaves a failed unit; healthcheck (T15) would report it
 
 # ---------------- B: namespaces -------------------------------------------------------------
 step "B1 unshare: a new PID + mount namespace; the shell inside is PID 1"
@@ -75,9 +76,9 @@ sleep 1; vmstat 1 5
 sar -u 1 5 | tail -n 1
 systemctl stop e4-load
 
-step "C3 disk load: 400 MiB direct write to /srv/app, iostat -x 1 3"
-( dd if=/dev/zero of=/srv/app/.e4-io-test bs=1M count=400 oflag=direct status=none ) &
-sleep 1; iostat -dx 1 3 | grep -E 'Device|sd[a-c]|dm-'
+step "C3 disk load: 800 MiB direct write to /srv/app, one 3 s iostat sample DURING the write"
+( dd if=/dev/zero of=/srv/app/.e4-io-test bs=1M count=800 oflag=direct status=none ) &
+sleep 1; iostat -dxy 3 1 | grep -E 'Device|sd[a-c]|dm-'      # -y: skip the since-boot report
 wait; rm -f /srv/app/.e4-io-test
 
 step "E4 demos done"

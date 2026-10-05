@@ -25,3 +25,4 @@ configs/mon01/logrotate.d/* text eol=lf
 *.md       text
 *.png      binary
 *.jpg      binary
+configs/** text eol=lf
