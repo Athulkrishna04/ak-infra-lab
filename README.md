@@ -134,4 +134,4 @@ Follow [docs/build-guide.md](docs/build-guide.md) from M0. In short:
 - ~~**E2:** patching with change records, 8 injected incidents with RCAs~~ ✅ done 2026-10-02 (tag `v1.1`)
 - ~~**E3:** Ansible rebuild (second run `changed=0`)~~ ✅ done 2026-10-03 (tag `v2.0`)
 - ~~**E4:** cgroup/namespace demos, performance baselines, NFS + autofs~~ ✅ done 2026-10-05 (tag `v2.1`; disk baseline left as a gap, see the evidence page)
-- **E5:** Zabbix 7.0 → 8.0 upgrade once 8.0 is GA
+- **E5:** Zabbix 7.0 → 8.0 upgrade, assessed 2026-10-05 and **deferred (no-go)**: 8.0 server packages exist only in the `unstable` channel (latest `8.0.0~rc1`). The plan, rollback and re-open criteria are in [CHG-004](docs/changes/CHG-004-zabbix-8.0-upgrade.md)
